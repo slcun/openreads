@@ -116,4 +116,7 @@ lint/tmp/
 .history
 .ionide
 
+# Agent worktrees
+.worktrees/
+
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode
