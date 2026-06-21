@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:openreads/core/themes/app_theme.dart';
-
 class BookDetailLong extends StatelessWidget {
   const BookDetailLong({
     super.key,

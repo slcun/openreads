@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:openreads/logic/bloc/theme_bloc/theme_bloc.dart';
 
-double get cornerRadius => _cornerRadius!;
-double? _cornerRadius;
+double get cornerRadius => _cornerRadius;
+double _cornerRadius = 8;
 
 Color primaryRed = const Color(0xffB73E3E);
 

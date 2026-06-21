@@ -15,10 +15,13 @@ import 'package:openreads/logic/bloc/open_library_search_bloc/open_library_searc
 import 'package:openreads/logic/cubit/default_book_status_cubit.dart';
 import 'package:openreads/logic/cubit/default_book_tags_cubit.dart';
 import 'package:openreads/logic/cubit/edit_book_cubit.dart';
+import 'package:openreads/logic/cubit/isbn_data_sources_cubit.dart';
 import 'package:openreads/model/ol_edition_result.dart';
 import 'package:openreads/model/reading.dart';
 import 'package:openreads/model/book.dart';
 import 'package:openreads/model/ol_search_result.dart';
+import 'package:openreads/model/isbn_lookup_result.dart';
+import 'package:openreads/resources/custom_isbn_lookup_service.dart';
 import 'package:openreads/resources/open_library_service.dart';
 import 'package:openreads/ui/add_book_screen/add_book_screen.dart';
 import 'package:openreads/ui/add_book_screen/widgets/widgets.dart';
@@ -208,6 +211,20 @@ class _SearchOLScreenState extends State<SearchOLScreen>
       _searchingISBNError = false;
       _searchingISBN = true;
     });
+
+    final customResult = await context.read<CustomIsbnLookupService>().lookup(
+      isbn: isbn,
+      sources: context.read<IsbnDataSourcesCubit>().state,
+    );
+
+    if (customResult != null && mounted) {
+      setState(() => searchActivated = false);
+      _saveCustomResult(customResult);
+      return;
+    }
+
+    if (!mounted) return;
+
     final edition = await OpenLibraryService().getEditionByISBN(isbn: isbn);
 
     final authors = List<String>.empty(growable: true);
@@ -241,6 +258,43 @@ class _SearchOLScreenState extends State<SearchOLScreen>
         _searchingISBNError = true;
       });
     }
+  }
+
+  void _saveCustomResult(IsbnLookupResult result) {
+    if (!mounted) return;
+
+    final defaultBookFormat = context.read<DefaultBooksFormatCubit>().state;
+    final defaultTags = context.read<DefaultBookTagsCubit>().state;
+    final addDate = DateTime.now();
+
+    final book = Book(
+      title: result.title,
+      author: result.author ?? '',
+      description: result.description,
+      pages: result.pageCount,
+      status: widget.status,
+      favourite: false,
+      isbn: result.isbn ?? _searchController.text.replaceAll('-', '').trim(),
+      publicationYear: result.publicationYear,
+      bookFormat: defaultBookFormat,
+      providerName: result.providerName,
+      sourceId: result.sourceId,
+      readings: List<Reading>.empty(growable: true),
+      tags: defaultTags.isNotEmpty ? defaultTags.join('|||||') : null,
+      dateAdded: addDate,
+      dateModified: addDate,
+    );
+
+    context.read<EditBookCubit>().setBook(book);
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AddBookScreen(
+          fromCustomSource: true,
+          coverUrl: result.coverUrl,
+        ),
+      ),
+    );
   }
 
   void _startScanner() async {

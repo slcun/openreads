@@ -28,8 +28,6 @@ class BookTypeDropdown extends StatelessWidget {
         return bookTypes[2];
       case BookFormat.audiobook:
         return bookTypes[3];
-      default:
-        return bookTypes[0];
     }
   }
 

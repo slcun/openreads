@@ -219,7 +219,7 @@ class _ChallengeDialogState extends State<ChallengeDialog>
                 children: [
                   Switch.adaptive(
                     value: _showPagesChallenge,
-                    activeColor: Theme.of(context).colorScheme.primary,
+                    activeThumbColor: Theme.of(context).colorScheme.primary,
                     onChanged: (value) {
                       setState(() {
                         _showPagesChallenge = value;

@@ -16,8 +16,6 @@ extension BookFormatExtension on BookFormat {
         return 2;
       case BookFormat.audiobook:
         return 3;
-      default:
-        return 0;
     }
   }
 }
