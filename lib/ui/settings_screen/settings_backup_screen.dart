@@ -303,7 +303,7 @@ class _SettingsBackupScreenState extends State<SettingsBackupScreen> {
               : null,
         ),
       ),
-      leading: Icon(
+      leading: FaIcon(
         FontAwesomeIcons.wrench,
         color: widget.autoMigrationV1ToV2
             ? Theme.of(context).colorScheme.primary
@@ -363,7 +363,7 @@ class _SettingsBackupScreenState extends State<SettingsBackupScreen> {
               height: 24,
               child: CircularProgressIndicator(),
             )
-          : const Icon(FontAwesomeIcons.arrowUpFromBracket),
+          : const FaIcon(FontAwesomeIcons.arrowUpFromBracket),
       description: Text(
         '${LocaleKeys.restore_backup_description_1.tr()}\n${LocaleKeys.restore_backup_description_2.tr()}',
       ),
@@ -431,7 +431,7 @@ class _SettingsBackupScreenState extends State<SettingsBackupScreen> {
               height: 24,
               child: CircularProgressIndicator(),
             )
-          : const Icon(FontAwesomeIcons.cloudArrowUp),
+          : const FaIcon(FontAwesomeIcons.cloudArrowUp),
       description: Text(
         LocaleKeys.create_cloud_backup_description.tr(),
       ),
@@ -453,7 +453,7 @@ class _SettingsBackupScreenState extends State<SettingsBackupScreen> {
               height: 24,
               child: CircularProgressIndicator(),
             )
-          : const Icon(FontAwesomeIcons.solidFloppyDisk),
+          : const FaIcon(FontAwesomeIcons.solidFloppyDisk),
       description: Text(
         LocaleKeys.create_local_backup_description.tr(),
       ),
@@ -475,7 +475,7 @@ class _SettingsBackupScreenState extends State<SettingsBackupScreen> {
               height: 24,
               child: CircularProgressIndicator(),
             )
-          : const Icon(FontAwesomeIcons.fileCsv),
+          : const FaIcon(FontAwesomeIcons.fileCsv),
       description: Text(
         LocaleKeys.export_csv_description_1.tr(),
       ),
@@ -497,7 +497,7 @@ class _SettingsBackupScreenState extends State<SettingsBackupScreen> {
               height: 24,
               child: CircularProgressIndicator(),
             )
-          : const Icon(FontAwesomeIcons.g),
+          : const FaIcon(FontAwesomeIcons.g),
       onPressed: _startImportingGoodreadsCSV,
     );
   }
@@ -516,7 +516,7 @@ class _SettingsBackupScreenState extends State<SettingsBackupScreen> {
               height: 24,
               child: CircularProgressIndicator(),
             )
-          : const Icon(FontAwesomeIcons.b),
+          : const FaIcon(FontAwesomeIcons.b),
       onPressed: _startImportingBookwyrmCSV,
     );
   }

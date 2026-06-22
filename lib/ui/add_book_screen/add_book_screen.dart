@@ -32,17 +32,21 @@ class AddBookScreen extends StatefulWidget {
     super.key,
     this.fromOpenLibrary = false,
     this.fromOpenLibraryEdition = false,
+    this.fromCustomSource = false,
     this.editingExistingBook = false,
     this.duplicatingBook = false,
     this.coverOpenLibraryID,
+    this.coverUrl,
     this.work,
   });
 
   final bool fromOpenLibrary;
   final bool fromOpenLibraryEdition;
+  final bool fromCustomSource;
   final bool editingExistingBook;
   final bool duplicatingBook;
   final int? coverOpenLibraryID;
+  final String? coverUrl;
   final String? work;
 
   @override
@@ -381,17 +385,37 @@ class _AddBookScreenState extends State<AddBookScreen> {
   }
 
   void _downloadInitData() {
-    if (widget.fromOpenLibrary || widget.fromOpenLibraryEdition) {
+    if (widget.fromCustomSource && widget.coverUrl != null) {
+      _downloadCustomCover();
+    } else if (widget.fromOpenLibrary || widget.fromOpenLibraryEdition) {
       if (widget.coverOpenLibraryID != null) {
         _downloadCover();
       } else {
-        // Remove temp cover file if book/edition has no cover
         context.read<EditBookCoverCubit>().setCover(null);
       }
 
       if (widget.fromOpenLibrary) {
         _downloadWork();
       }
+    }
+  }
+
+  void _downloadCustomCover() async {
+    setState(() => _isCoverDownloading = true);
+
+    try {
+      final response = await http.get(Uri.parse(widget.coverUrl!));
+      if (!mounted) return;
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        await generateBlurHash(response.bodyBytes, context);
+        if (!mounted) return;
+        context.read<EditBookCoverCubit>().setCover(response.bodyBytes);
+        context.read<EditBookCubit>().setHasCover(true);
+      }
+    } catch (_) {
+      // Custom cover download failure is non-fatal.
+    } finally {
+      if (mounted) setState(() => _isCoverDownloading = false);
     }
   }
 
@@ -617,10 +641,10 @@ class _AddBookScreenState extends State<AddBookScreen> {
                           borderRadius: BorderRadius.circular(cornerRadius),
                           color: Theme.of(context)
                               .colorScheme
-                              .surfaceVariant
-                              .withOpacity(0.5),
+                              .surfaceContainerHighest
+                              .withValues(alpha: 0.5),
                         ),
-                        child: Icon(
+                        child: FaIcon(
                           FontAwesomeIcons.barcode,
                           size: 28,
                           color: Theme.of(context).colorScheme.primary,
@@ -691,7 +715,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
                         onPressed: () => Navigator.pop(context),
                         style: ButtonStyle(
                           shape:
-                              MaterialStateProperty.all(RoundedRectangleBorder(
+                              WidgetStateProperty.all(RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(cornerRadius),
                           )),
                         ),
@@ -708,7 +732,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
                                 ? () => _updateBook(state)
                                 : () => _saveNewBook(state),
                             style: ButtonStyle(
-                              shape: MaterialStateProperty.all(
+                              shape: WidgetStateProperty.all(
                                   RoundedRectangleBorder(
                                 borderRadius:
                                     BorderRadius.circular(cornerRadius),

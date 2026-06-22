@@ -2,17 +2,42 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        maven { url 'https://maven.aliyun.com/repository/google' }
+        maven { url 'https://maven.aliyun.com/repository/public' }
+        maven { url 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public/' }
+        maven { url 'https://mirrors.huaweicloud.com/repository/maven/' }
     }
 }
 
 rootProject.buildDir = '../build'
 subprojects {
     afterEvaluate { project ->
-        if (project.plugins.hasPlugin("com.android.library")) {
-            project.android {
-                if (namespace == null) {
-                    namespace project.group
-                }
+        def androidExtension = project.extensions.findByName("android")
+        if (androidExtension != null) {
+            if (project.plugins.hasPlugin("com.android.library")
+                    && androidExtension.hasProperty("namespace")
+                    && androidExtension.namespace == null) {
+                androidExtension.namespace = project.group
+            }
+
+            if (androidExtension.hasProperty("compileSdk")) {
+                androidExtension.compileSdk = Math.max(androidExtension.compileSdk ?: 0, 36)
+            } else if (androidExtension.metaClass.respondsTo(androidExtension, "compileSdkVersion", Integer)) {
+                androidExtension.compileSdkVersion(36)
+            }
+        }
+    }
+}
+
+subprojects {
+    afterEvaluate { project ->
+        def androidExtension = project.extensions.findByName("android")
+        if (androidExtension != null && androidExtension.hasProperty("defaultConfig")) {
+            def defaultConfig = androidExtension.defaultConfig
+            if (defaultConfig != null && defaultConfig.hasProperty("targetSdk")) {
+                defaultConfig.targetSdk = Math.max(defaultConfig.targetSdk ?: 0, 36)
+            } else if (defaultConfig != null && defaultConfig.metaClass.respondsTo(defaultConfig, "targetSdkVersion", Integer)) {
+                defaultConfig.targetSdkVersion(36)
             }
         }
     }

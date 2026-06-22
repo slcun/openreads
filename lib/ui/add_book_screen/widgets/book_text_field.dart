@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 
 import 'package:openreads/core/themes/app_theme.dart';
@@ -25,7 +26,7 @@ class BookTextField extends StatefulWidget {
 
   final TextEditingController controller;
   final String? hint;
-  final IconData? icon;
+  final Object? icon;
   final TextInputType? keyboardType;
   final List<TextInputFormatter>? inputFormatters;
   final bool autofocus;
@@ -139,12 +140,7 @@ class _BookTextFieldState extends State<BookTextField> {
       decoration: InputDecoration(
         labelText: widget.hint,
         labelStyle: const TextStyle(fontSize: 14),
-        icon: (widget.icon != null)
-            ? Icon(
-                widget.icon,
-                color: Theme.of(context).colorScheme.primary,
-              )
-            : null,
+        icon: _buildIcon(context),
         border: InputBorder.none,
         counterText: widget.hideCounter ? "" : null,
         suffixIcon: showClearButton
@@ -161,5 +157,26 @@ class _BookTextFieldState extends State<BookTextField> {
             : null,
       ),
     );
+  }
+
+  Widget? _buildIcon(BuildContext context) {
+    final icon = widget.icon;
+    if (icon == null) return null;
+
+    if (icon is FaIconData) {
+      return FaIcon(
+        icon,
+        color: Theme.of(context).colorScheme.primary,
+      );
+    }
+
+    if (icon is IconData) {
+      return Icon(
+        icon,
+        color: Theme.of(context).colorScheme.primary,
+      );
+    }
+
+    return null;
   }
 }

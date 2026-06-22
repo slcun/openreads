@@ -32,9 +32,13 @@ import 'package:openreads/logic/cubit/default_book_status_cubit.dart';
 import 'package:openreads/logic/cubit/default_book_tags_cubit.dart';
 import 'package:openreads/logic/cubit/display_cubit.dart';
 import 'package:openreads/logic/cubit/edit_book_cubit.dart';
+import 'package:openreads/logic/cubit/isbn_data_sources_cubit.dart';
 import 'package:openreads/logic/cubit/selected_books_cubit.dart';
 import 'package:openreads/resources/connectivity_service.dart';
 import 'package:openreads/resources/open_library_service.dart';
+import 'package:openreads/resources/custom_isbn_lookup_service.dart';
+import 'package:openreads/resources/isbn_source_credentials_store.dart';
+import 'package:http/http.dart' as http;
 import 'package:openreads/ui/home_screen/home_screen.dart';
 import 'package:openreads/ui/welcome_screen/welcome_screen.dart';
 import 'package:path_provider/path_provider.dart';
@@ -98,6 +102,7 @@ class App extends StatelessWidget {
       BlocProvider(create: (_) => WelcomeBloc()),
       BlocProvider(create: (_) => RatingTypeBloc()),
       BlocProvider(create: (_) => MigrationV1ToV2Bloc()),
+      BlocProvider(create: (_) => IsbnDataSourcesCubit()),
     ];
 
     final sortProviders = [
@@ -129,6 +134,15 @@ class App extends StatelessWidget {
     return [
       RepositoryProvider(create: (_) => OpenLibraryService()),
       RepositoryProvider(create: (_) => ConnectivityService()),
+      RepositoryProvider<IsbnSourceCredentialsStore>(
+        create: (_) => SecureIsbnSourceCredentialsStore(),
+      ),
+      RepositoryProvider(
+        create: (context) => CustomIsbnLookupService(
+          client: http.Client(),
+          credentialsStore: context.read<IsbnSourceCredentialsStore>(),
+        ),
+      ),
     ];
   }
 

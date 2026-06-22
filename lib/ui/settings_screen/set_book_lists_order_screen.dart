@@ -70,7 +70,7 @@ class SetBookListsOrderScreen extends StatelessWidget {
                       ),
                     ),
                 ],
-                onReorder: (int oldIndex, int newIndex) => context
+                onReorderItem: (int oldIndex, int newIndex) => context
                     .read<BookListsOrderCubit>()
                     .updateOrder(oldIndex, newIndex),
                 onReorderStart: (_) {

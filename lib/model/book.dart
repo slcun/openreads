@@ -1,10 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
 import 'package:openreads/core/constants/enums/enums.dart';
-import 'package:openreads/generated/locale_keys.g.dart';
 import 'package:openreads/main.dart';
 import 'package:openreads/model/reading.dart';
 import 'package:openreads/model/book_from_backup_v3.dart';
@@ -23,6 +21,8 @@ class Book {
   int? publicationYear;
   String? isbn;
   String? olid;
+  String? providerName;
+  String? sourceId;
   String? tags;
   String? myReview;
   String? notes;
@@ -48,6 +48,8 @@ class Book {
     this.publicationYear,
     this.isbn,
     this.olid,
+    this.providerName,
+    this.sourceId,
     this.tags,
     this.myReview,
     this.notes,
@@ -98,6 +100,8 @@ class Book {
       publicationYear: json['publication_year'],
       isbn: json['isbn'],
       olid: json['olid'],
+      providerName: json['provider_name'],
+      sourceId: json['source_id'],
       tags: json['tags'],
       myReview: json['my_review'],
       notes: json['notes'],
@@ -138,6 +142,8 @@ class Book {
     int? publicationYear,
     String? isbn,
     String? olid,
+    String? providerName,
+    String? sourceId,
     String? tags,
     String? myReview,
     String? notes,
@@ -163,6 +169,8 @@ class Book {
       publicationYear: publicationYear ?? this.publicationYear,
       isbn: isbn ?? this.isbn,
       olid: olid ?? this.olid,
+      providerName: providerName ?? this.providerName,
+      sourceId: sourceId ?? this.sourceId,
       tags: tags ?? this.tags,
       myReview: myReview ?? this.myReview,
       notes: notes ?? this.notes,
@@ -191,6 +199,8 @@ class Book {
       publicationYear: publicationYear,
       isbn: isbn,
       olid: olid,
+      providerName: providerName,
+      sourceId: sourceId,
       tags: tags,
       myReview: myReview,
       notes: notes,
@@ -261,8 +271,7 @@ class Book {
   }
 
   Map<String, dynamic> toJSON() {
-    return {
-      'id': id,
+    final json = <String, dynamic>{
       'title': title,
       'subtitle': subtitle,
       'author': author,
@@ -275,6 +284,8 @@ class Book {
       'publication_year': publicationYear,
       'isbn': isbn,
       'olid': olid,
+      'provider_name': providerName,
+      'source_id': sourceId,
       'tags': tags,
       'my_review': myReview,
       'notes': notes,
@@ -293,6 +304,12 @@ class Book {
       'date_added': dateAdded.toIso8601String(),
       'date_modified': dateModified.toIso8601String(),
     };
+
+    if (id != null) {
+      json['id'] = id;
+    }
+
+    return json;
   }
 
   File? getCoverFile() {

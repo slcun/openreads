@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:openreads/core/themes/app_theme.dart';
 import 'package:openreads/main.dart';
 
@@ -15,7 +16,7 @@ class SetDateButton extends StatefulWidget {
   });
 
   final double defaultHeight;
-  final IconData icon;
+  final Object icon;
   final String text;
   final DateTime? date;
   final Function() onPressed;
@@ -54,10 +55,15 @@ class _SetDateButtonState extends State<SetDateButton> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Icon(
-                      widget.icon,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
+                    widget.icon is FaIconData
+                        ? FaIcon(
+                            widget.icon as FaIconData,
+                            color: Theme.of(context).colorScheme.primary,
+                          )
+                        : Icon(
+                            widget.icon as IconData,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(

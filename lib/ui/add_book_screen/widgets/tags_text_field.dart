@@ -2,6 +2,7 @@ import 'package:diacritic/diacritic.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:openreads/core/themes/app_theme.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:openreads/logic/cubit/edit_book_cubit.dart';
@@ -29,7 +30,7 @@ class TagsField extends StatelessWidget {
 
   final TextEditingController? controller;
   final String? hint;
-  final IconData? icon;
+  final Object? icon;
   final TextInputType keyboardType;
   final List<TextInputFormatter>? inputFormatters;
   final bool autofocus;
@@ -161,12 +162,7 @@ class TagsField extends StatelessWidget {
                     decoration: InputDecoration(
                       labelText: hint,
                       labelStyle: const TextStyle(fontSize: 14),
-                      icon: (icon != null)
-                          ? Icon(
-                              icon,
-                              color: Theme.of(context).colorScheme.primary,
-                            )
-                          : null,
+                      icon: _buildIcon(context),
                       border: InputBorder.none,
                       counterText: hideCounter ? "" : null,
                     ),
@@ -202,5 +198,25 @@ class TagsField extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget? _buildIcon(BuildContext context) {
+    if (icon == null) return null;
+
+    if (icon is FaIconData) {
+      return FaIcon(
+        icon as FaIconData,
+        color: Theme.of(context).colorScheme.primary,
+      );
+    }
+
+    if (icon is IconData) {
+      return Icon(
+        icon as IconData,
+        color: Theme.of(context).colorScheme.primary,
+      );
+    }
+
+    return null;
   }
 }

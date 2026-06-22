@@ -14,6 +14,7 @@ import 'package:openreads/generated/locale_keys.g.dart';
 import 'package:openreads/logic/bloc/theme_bloc/theme_bloc.dart';
 import 'package:openreads/logic/cubit/default_book_status_cubit.dart';
 import 'package:openreads/ui/settings_screen/download_missing_covers_screen.dart';
+import 'package:openreads/ui/settings_screen/isbn_data_sources_screen.dart';
 import 'package:openreads/ui/settings_screen/set_book_lists_order_screen.dart';
 import 'package:openreads/ui/settings_screen/set_default_book_tags_screen.dart';
 import 'package:openreads/ui/settings_screen/settings_backup_screen.dart';
@@ -516,6 +517,19 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  SettingsTile _buildIsbnDataSources(BuildContext context) {
+    return SettingsTile.navigation(
+      title: Text(
+        LocaleKeys.isbn_data_sources.tr(),
+        style: const TextStyle(fontSize: 16),
+      ),
+      leading: const Icon(Icons.manage_search),
+      onPressed: (_) => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const IsbnDataSourcesScreen()),
+      ),
+    );
+  }
+
   SettingsTile _buildTabOrderSetting(BuildContext context) {
     return SettingsTile.navigation(
       title: Text(
@@ -722,6 +736,7 @@ class SettingsScreen extends StatelessWidget {
                           _buildTabOrderSetting(context),
                           _buildDefaultTags(context),
                           _buildDownloadMissingCovers(context),
+                          _buildIsbnDataSources(context),
                         ],
                       ),
                       SettingsSection(

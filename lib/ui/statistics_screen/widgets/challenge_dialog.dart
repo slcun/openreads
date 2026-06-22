@@ -219,7 +219,7 @@ class _ChallengeDialogState extends State<ChallengeDialog>
                 children: [
                   Switch.adaptive(
                     value: _showPagesChallenge,
-                    activeColor: Theme.of(context).colorScheme.primary,
+                    activeThumbColor: Theme.of(context).colorScheme.primary,
                     onChanged: (value) {
                       setState(() {
                         _showPagesChallenge = value;
@@ -317,7 +317,7 @@ class _ChallengeDialogState extends State<ChallengeDialog>
               const SizedBox(height: 10),
               Platform.isIOS
                   ? CupertinoButton(
-                      child: const Text("Save"),
+                      child: Text(LocaleKeys.save.tr()),
                       onPressed: () {
                         widget.setChallenge(
                             _booksTarget ?? 0,
@@ -345,8 +345,8 @@ class _ChallengeDialogState extends State<ChallengeDialog>
                           borderRadius: BorderRadius.circular(cornerRadius),
                         ),
                       ),
-                      child: const Center(
-                        child: Text("Save"),
+                      child: Center(
+                        child: Text(LocaleKeys.save.tr()),
                       ),
                     )
             ],
