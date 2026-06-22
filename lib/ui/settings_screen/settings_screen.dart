@@ -1,7 +1,5 @@
 import 'dart:io';
 
-import 'package:animated_widgets/widgets/rotation_animated.dart';
-import 'package:animated_widgets/widgets/shake_animated_widget.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -30,17 +28,10 @@ class SettingsScreen extends StatelessWidget {
 
   static const licence = 'GNU General Public Licence v2.0';
   static const repoUrl = 'https://github.com/mateusz-bak/openreads';
-  static const translationUrl = 'https://hosted.weblate.org/engage/openreads/';
-  static const communityUrl = 'https://matrix.to/#/#openreads:matrix.org';
-  static const rateUrlAndroid =
-      'market://details?id=software.mdev.bookstracker';
-  static const rateUrlIOS = 'https://apps.apple.com/app/id6476542305';
   static const releasesUrl = '$repoUrl/releases';
   static const licenceUrl = '$repoUrl/blob/master/LICENSE';
   static const githubIssuesUrl = '$repoUrl/issues';
   static const githubDiscussionUrl = '$repoUrl/discussions';
-  static const githubSponsorUrl = 'https://github.com/sponsors/mateusz-bak';
-  static const buyMeCoffeUrl = 'https://www.buymeacoffee.com/mateuszbak';
 
   _openGithubIssue(BuildContext context, [bool mounted = true]) async {
     try {
@@ -61,36 +52,6 @@ class SettingsScreen extends StatelessWidget {
     try {
       await launchUrl(
         Uri.parse(githubDiscussionUrl),
-        mode: LaunchMode.externalApplication,
-      );
-    } catch (error) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$error')),
-      );
-    }
-  }
-
-  _supportGithub(BuildContext context, [bool mounted = true]) async {
-    try {
-      await launchUrl(
-        Uri.parse(githubSponsorUrl),
-        mode: LaunchMode.externalApplication,
-      );
-    } catch (error) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$error')),
-      );
-    }
-  }
-
-  _supportBuyMeCoffe(BuildContext context, [bool mounted = true]) async {
-    try {
-      await launchUrl(
-        Uri.parse(buyMeCoffeUrl),
         mode: LaunchMode.externalApplication,
       );
     } catch (error) {
@@ -386,96 +347,6 @@ class SettingsScreen extends StatelessWidget {
                 size: 24,
               ),
               onTap: () => _openGithubIssue(context),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  SettingsTile _buildSupportSetting(BuildContext context) {
-    return SettingsTile.navigation(
-      title: Text(
-        LocaleKeys.support_the_project.tr(),
-        style: TextStyle(
-          fontSize: 17,
-          color: Theme.of(context).colorScheme.primary,
-          fontWeight: FontWeight.bold,
-          letterSpacing: 0.8,
-        ),
-      ),
-      description: Text(LocaleKeys.support_the_project_description.tr()),
-      leading: ShakeAnimatedWidget(
-        duration: const Duration(seconds: 3),
-        shakeAngle: Rotation.deg(z: 20),
-        curve: Curves.bounceInOut,
-        child: FaIcon(
-          FontAwesomeIcons.mugHot,
-          color: Theme.of(context).colorScheme.primary,
-        ),
-      ),
-      onPressed: (context) {
-        FocusManager.instance.primaryFocus?.unfocus();
-        if (Platform.isIOS) {
-          showCupertinoModalBottomSheet(
-            context: context,
-            expand: false,
-            builder: (_) {
-              return _buildSupportBottomSheet(context);
-            },
-          );
-        } else if (Platform.isAndroid) {
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            elevation: 0,
-            backgroundColor: Theme.of(context).colorScheme.surface,
-            builder: (context) {
-              return _buildSupportBottomSheet(context);
-            },
-          );
-        }
-      },
-    );
-  }
-
-  Widget _buildSupportBottomSheet(BuildContext context) {
-    return Material(
-      child: SafeArea(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.end,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (Platform.isAndroid)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(0, 10, 0, 10),
-                child: Container(
-                  height: 5,
-                  width: 40,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurfaceVariant
-                        .withOpacity(0.4),
-                    borderRadius: BorderRadius.circular(50),
-                  ),
-                ),
-              ),
-            ListTile(
-              title: Text(LocaleKeys.support_option_1.tr()),
-              leading: FaIcon(
-                FontAwesomeIcons.github,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              onTap: () => _supportGithub(context),
-            ),
-            ListTile(
-              title: Text(LocaleKeys.support_option_2.tr()),
-              leading: FaIcon(
-                FontAwesomeIcons.mugHot,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              onTap: () => _supportBuyMeCoffe(context),
             ),
           ],
         ),
@@ -810,38 +681,7 @@ class SettingsScreen extends StatelessWidget {
   List<SettingsTile> _buildGeneralSettingsTiles(BuildContext context) {
     final tiles = List<SettingsTile>.empty(growable: true);
 
-    // TODO: Implement in app purchase for iOS
-    if (!Platform.isIOS) {
-      tiles.add(_buildSupportSetting(context));
-    }
-
-    tiles.add(_buildURLSetting(
-      title: LocaleKeys.join_community.tr(),
-      description: LocaleKeys.join_community_description.tr(),
-      url: communityUrl,
-      iconData: Icons.groups,
-      context: context,
-    ));
-
-    tiles.add(_buildURLSetting(
-      title: LocaleKeys.rate_app.tr(),
-      description: LocaleKeys.rate_app_description.tr(),
-      url: Platform.isIOS
-          ? rateUrlIOS
-          : Platform.isAndroid
-              ? rateUrlAndroid
-              : null,
-      iconData: Icons.star_rounded,
-      context: context,
-    ));
     tiles.add(_buildFeedbackSetting(context));
-    tiles.add(_buildURLSetting(
-      title: LocaleKeys.translate_app.tr(),
-      description: LocaleKeys.translate_app_description.tr(),
-      url: translationUrl,
-      iconData: Icons.translate_rounded,
-      context: context,
-    ));
 
     return tiles;
   }

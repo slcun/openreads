@@ -19,10 +19,7 @@ import 'package:share_plus/share_plus.dart';
 class SettingsBackupScreen extends StatefulWidget {
   const SettingsBackupScreen({
     super.key,
-    this.autoMigrationV1ToV2 = false,
   });
-
-  final bool autoMigrationV1ToV2;
 
   @override
   State<SettingsBackupScreen> createState() => _SettingsBackupScreenState();
@@ -155,12 +152,6 @@ class _SettingsBackupScreenState extends State<SettingsBackupScreen> {
     setState(() => _restoringLocal = false);
   }
 
-  _startMigratingV1ToV2() {
-    BlocProvider.of<MigrationV1ToV2Bloc>(context).add(
-      StartMigration(context: context, retrigger: true),
-    );
-  }
-
   initDeviceInfoPlugin() async {
     androidInfo = await DeviceInfoPlugin().androidInfo;
   }
@@ -289,63 +280,6 @@ class _SettingsBackupScreenState extends State<SettingsBackupScreen> {
           ),
         );
       }),
-    );
-  }
-
-  SettingsTile _buildV1ToV2Migration(BuildContext context) {
-    return SettingsTile(
-      title: Text(
-        LocaleKeys.migration_v1_to_v2_retrigger.tr(),
-        style: TextStyle(
-          fontSize: 16,
-          color: widget.autoMigrationV1ToV2
-              ? Theme.of(context).colorScheme.primary
-              : null,
-        ),
-      ),
-      leading: FaIcon(
-        FontAwesomeIcons.wrench,
-        color: widget.autoMigrationV1ToV2
-            ? Theme.of(context).colorScheme.primary
-            : null,
-      ),
-      description: Text(
-        LocaleKeys.migration_v1_to_v2_retrigger_description.tr(),
-        style: TextStyle(
-          color: widget.autoMigrationV1ToV2
-              ? Theme.of(context).colorScheme.primary
-              : null,
-        ),
-      ),
-      onPressed: (context) {
-        showDialog(
-          context: context,
-          builder: (context) {
-            return AlertDialog(
-              title: Text(
-                LocaleKeys.are_you_sure.tr(),
-              ),
-              content: Text(
-                LocaleKeys.restore_backup_alert_content.tr(),
-              ),
-              actionsAlignment: MainAxisAlignment.spaceBetween,
-              actions: [
-                FilledButton.tonal(
-                  onPressed: () {
-                    _startMigratingV1ToV2();
-                    Navigator.of(context).pop();
-                  },
-                  child: Text(LocaleKeys.yes.tr()),
-                ),
-                FilledButton.tonal(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(LocaleKeys.no.tr()),
-                ),
-              ],
-            );
-          },
-        );
-      },
     );
   }
 
@@ -550,11 +484,6 @@ class _SettingsBackupScreenState extends State<SettingsBackupScreen> {
       _buildCreateCloudBackup(),
       _buildRestoreBackup(context),
     ];
-
-    //TODO: This should be removed in the future
-    if (Platform.isAndroid) {
-      listOfTiles.add(_buildV1ToV2Migration(context));
-    }
 
     return SettingsSection(
       title: Text(
