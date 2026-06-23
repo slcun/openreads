@@ -15,3 +15,10 @@ class Settings:
         default_factory=lambda: float(os.getenv("REQUEST_TIMEOUT_SECONDS", "30.0"))
     )
     cors_allow_origins: list[str] | None = field(default=None)
+    user_agent: str = field(
+        default_factory=lambda: os.getenv(
+            "USER_AGENT",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",
+        )
+    )

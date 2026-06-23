@@ -68,11 +68,13 @@ class DoubanLookup:
         client: httpx.AsyncClient,
         minimum_request_interval_seconds: float,
         request_timeout_seconds: float,
+        user_agent: str = "",
     ):
         self._cache = cache
         self._client = client
         self._min_interval = minimum_request_interval_seconds
         self._timeout = request_timeout_seconds
+        self._user_agent = user_agent
         self._lock = asyncio.Lock()
         self._last_request_time = 0.0
 
@@ -100,16 +102,11 @@ class DoubanLookup:
             return metadata
 
     async def _fetch_book(self, isbn: str) -> BookMetadata | None:
-        search_url = f"https://book.douban.com/subject_search?search_text={isbn}"
-        try:
-            search_resp = await self._client.get(search_url, timeout=self._timeout)
-            search_resp.raise_for_status()
-            search_html = search_resp.text
-        except httpx.HTTPError as e:
-            raise UpstreamError("upstream request failed") from e
-        finally:
-            # Advance clock even on errors to protect upstream from rapid retries
-            self._last_request_time = time.monotonic()
+        search_url = (
+            "https://search.douban.com/book/subject_search?"
+            f"search_text={isbn}&cat=1001"
+        )
+        search_html = await self._request_upstream(search_url)
 
         candidate_urls = parse_search_html(search_html)
 
@@ -119,17 +116,11 @@ class DoubanLookup:
             return None
 
         for url in candidate_urls:
+            detail_html = await self._request_upstream(url)
             try:
-                detail_resp = await self._client.get(url, timeout=self._timeout)
-                detail_resp.raise_for_status()
-                detail_html = detail_resp.text
-            except httpx.HTTPError as e:
-                raise UpstreamError("upstream request failed") from e
-            finally:
-                # Advance clock even on errors to protect upstream from rapid retries
-                self._last_request_time = time.monotonic()
-
-            metadata = parse_detail_html(detail_html, isbn)
+                metadata = parse_detail_html(detail_html, isbn)
+            except (AttributeError, TypeError, ValueError) as e:
+                raise UpstreamError("upstream response could not be parsed") from e
             if metadata is not None:
                 logger.info("found match for isbn=%s source_id=%s", isbn, metadata.source_id)
                 self._cache.put_success(metadata)
@@ -138,6 +129,21 @@ class DoubanLookup:
         logger.info("no matching edition for isbn=%s", isbn)
         self._cache.put_not_found(isbn)
         return None
+
+    async def _request_upstream(self, url: str) -> str:
+        elapsed = time.monotonic() - self._last_request_time
+        if elapsed < self._min_interval:
+            await asyncio.sleep(self._min_interval - elapsed)
+        headers = {"User-Agent": self._user_agent} if self._user_agent else {}
+        try:
+            response = await self._client.get(url, headers=headers, timeout=self._timeout)
+            response.raise_for_status()
+            return response.text
+        except httpx.HTTPError as e:
+            raise UpstreamError("upstream request failed") from e
+        finally:
+            # Advance clock even on errors to protect upstream from rapid retries
+            self._last_request_time = time.monotonic()
 
     def assert_ready(self) -> None:
         try:

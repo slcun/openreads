@@ -14,6 +14,7 @@ def main():
         client=client,
         minimum_request_interval_seconds=settings.minimum_request_interval_seconds,
         request_timeout_seconds=settings.request_timeout_seconds,
+        user_agent=settings.user_agent,
     )
     app = create_app(settings=settings, lookup=lookup)
     uvicorn.run(app, host=settings.bind_host, port=settings.bind_port)
