@@ -224,9 +224,12 @@ class BackupExport {
   }
 
   static Future<String> _getAppVersion() async {
-    PackageInfo packageInfo = await PackageInfo.fromPlatform();
-
-    return packageInfo.version;
+    try {
+      PackageInfo packageInfo = await PackageInfo.fromPlatform();
+      return packageInfo.version;
+    } catch (_) {
+      return '';
+    }
   }
 
   static Future<String> _prepareBackupFileName() async {
