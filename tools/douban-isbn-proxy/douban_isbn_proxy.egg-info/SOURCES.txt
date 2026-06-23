@@ -20,3 +20,4 @@ tests/test_container_contract.py
 tests/test_cover_cache.py
 tests/test_douban_parser.py
 tests/test_isbn.py
+tests/test_packaging.py

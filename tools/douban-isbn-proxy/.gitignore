@@ -1,1 +1,4 @@
-tools/douban-isbn-proxy/.env
+.env
+cache.db
+cover_cache/
+.pytest-tmp/

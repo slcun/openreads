@@ -76,9 +76,10 @@ def parse_mobile_search_html(html: str) -> list[str]:
 
 
 def _append_subject_url(links: list[str], url: str) -> None:
-    if not re.search(r"/subject/\d+/", url):
+    match = re.search(r"/(?:book/)?subject/(\d+)/", url)
+    if match is None:
         return
-    full = url if url.startswith("http") else "https://book.douban.com" + url
+    full = f"https://book.douban.com/subject/{match.group(1)}/"
     if full not in links:
         links.append(full)
 

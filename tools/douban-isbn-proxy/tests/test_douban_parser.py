@@ -2,7 +2,11 @@ from pathlib import Path
 
 import pytest
 
-from douban_isbn_proxy.douban import parse_detail_html, parse_search_html
+from douban_isbn_proxy.douban import (
+    parse_detail_html,
+    parse_mobile_search_html,
+    parse_search_html,
+)
 
 
 def load_fixture(name: str) -> str:
@@ -25,6 +29,14 @@ window.__DATA__ = {"items": [
     links = parse_search_html(html)
 
     assert links == ["https://book.douban.com/subject/7654321/"]
+
+
+def test_mobile_search_parser_normalizes_book_subject_relative_urls():
+    html = '<a href="/book/subject/38383937/">Book</a>'
+
+    links = parse_mobile_search_html(html)
+
+    assert links == ["https://book.douban.com/subject/38383937/"]
 
 
 def test_detail_parser_returns_only_a_matching_isbn():
