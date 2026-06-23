@@ -4,7 +4,7 @@ class DoubanIsbnSourcePreset {
   static const id = 'douban-isbn-proxy';
 
   static IsbnDataSource create(String baseUrl) {
-    final baseUri = _httpsBaseUri(baseUrl);
+    final baseUri = _allowedBaseUri(baseUrl);
     return IsbnDataSource(
       id: id,
       name: 'Douban ISBN Proxy',
@@ -23,7 +23,7 @@ class DoubanIsbnSourcePreset {
     );
   }
 
-  static Uri _httpsBaseUri(String baseUrl) {
+  static Uri _allowedBaseUri(String baseUrl) {
     final trimmed = baseUrl.trim();
     if (trimmed.isEmpty) {
       throw const FormatException('Base URL must not be empty');
@@ -35,9 +35,10 @@ class DoubanIsbnSourcePreset {
     }
 
     final uri = Uri.tryParse(normalized);
-    if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) {
+    if (uri == null || !IsbnDataSource.isAllowedRequestUri(uri) ||
+        uri.host.isEmpty) {
       throw const FormatException(
-        'Base URL must be a valid HTTPS URL with a host',
+        'Base URL must be a valid HTTPS URL or trusted local HTTP URL with a host',
       );
     }
 

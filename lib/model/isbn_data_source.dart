@@ -1,5 +1,6 @@
 import 'dart:collection';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
@@ -51,8 +52,12 @@ class IsbnDataSource {
 
   bool get hasValidRequestConfiguration {
     final uri = Uri.tryParse(urlTemplate);
-    if (id.trim().isEmpty || name.trim().isEmpty || uri == null ||
-        uri.scheme != 'https' || uri.host.isEmpty || timeout <= Duration.zero) {
+    if (id.trim().isEmpty ||
+        name.trim().isEmpty ||
+        uri == null ||
+        !isAllowedRequestUri(uri) ||
+        uri.host.isEmpty ||
+        timeout <= Duration.zero) {
       return false;
     }
 
@@ -63,7 +68,8 @@ class IsbnDataSource {
     if (postBodyMode == IsbnPostBodyMode.none) return usesIsbnInUrl;
 
     final bodyTemplate = postBodyTemplate?.trim();
-    if (bodyTemplate == null || bodyTemplate.isEmpty ||
+    if (bodyTemplate == null ||
+        bodyTemplate.isEmpty ||
         (!usesIsbnInUrl && !usesIsbnInBody)) {
       return false;
     }
@@ -86,8 +92,7 @@ class IsbnDataSource {
         ].every(_isEmptyOrValidJsonPath);
   }
 
-  bool get isValid =>
-      hasValidRequestConfiguration && hasValidResponseMapping;
+  bool get isValid => hasValidRequestConfiguration && hasValidResponseMapping;
 
   bool validate() => isValid;
 
@@ -138,25 +143,25 @@ class IsbnDataSource {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'enabled': enabled,
-        'method': method.name,
-        'url_template': urlTemplate,
-        'headers': headers,
-        'post_body_mode': postBodyMode.name,
-        'post_body_template': postBodyTemplate,
-        'timeout_ms': timeout.inMilliseconds,
-        'title_json_path': titleJsonPath,
-        'author_json_path': authorJsonPath,
-        'isbn_json_path': isbnJsonPath,
-        'page_count_json_path': pageCountJsonPath,
-        'cover_url_json_path': coverUrlJsonPath,
-        'publisher_json_path': publisherJsonPath,
-        'publication_year_json_path': publicationYearJsonPath,
-        'description_json_path': descriptionJsonPath,
-        'source_id_json_path': sourceIdJsonPath,
-      };
+    'id': id,
+    'name': name,
+    'enabled': enabled,
+    'method': method.name,
+    'url_template': urlTemplate,
+    'headers': headers,
+    'post_body_mode': postBodyMode.name,
+    'post_body_template': postBodyTemplate,
+    'timeout_ms': timeout.inMilliseconds,
+    'title_json_path': titleJsonPath,
+    'author_json_path': authorJsonPath,
+    'isbn_json_path': isbnJsonPath,
+    'page_count_json_path': pageCountJsonPath,
+    'cover_url_json_path': coverUrlJsonPath,
+    'publisher_json_path': publisherJsonPath,
+    'publication_year_json_path': publicationYearJsonPath,
+    'description_json_path': descriptionJsonPath,
+    'source_id_json_path': sourceIdJsonPath,
+  };
 
   factory IsbnDataSource.fromJson(Map<String, dynamic> json) {
     return IsbnDataSource(
@@ -196,10 +201,9 @@ class IsbnDataSource {
 
   static Map<String, String> _headersFromJson(dynamic value) {
     if (value is! Map) return const {};
-    return value.map((key, headerValue) => MapEntry(
-          key.toString(),
-          headerValue.toString(),
-        ));
+    return value.map(
+      (key, headerValue) => MapEntry(key.toString(), headerValue.toString()),
+    );
   }
 
   static bool _isValidJsonPath(String value) {
@@ -231,6 +235,37 @@ class IsbnDataSource {
 
   static bool _isEmptyOrValidJsonPath(String? value) =>
       value == null || value.trim().isEmpty || _isValidJsonPath(value);
+
+  static bool isAllowedRequestUri(Uri uri) =>
+      uri.scheme == 'https' ||
+      (uri.scheme == 'http' && _isTrustedLocalHttpHost(uri.host));
+
+  static bool _isTrustedLocalHttpHost(String host) {
+    final normalizedHost = host.toLowerCase();
+    if (normalizedHost == 'localhost' || normalizedHost.endsWith('.local')) {
+      return true;
+    }
+
+    final address = InternetAddress.tryParse(host);
+    if (address == null) return false;
+
+    final bytes = address.rawAddress;
+    if (address.type == InternetAddressType.IPv4) {
+      final first = bytes[0];
+      final second = bytes[1];
+      return first == 10 ||
+          first == 127 ||
+          (first == 169 && second == 254) ||
+          (first == 172 && second >= 16 && second <= 31) ||
+          (first == 192 && second == 168);
+    }
+
+    final isLoopback =
+        bytes.take(15).every((byte) => byte == 0) && bytes[15] == 1;
+    final isUniqueLocal = (bytes[0] & 0xfe) == 0xfc;
+    final isLinkLocal = bytes[0] == 0xfe && (bytes[1] & 0xc0) == 0x80;
+    return isLoopback || isUniqueLocal || isLinkLocal;
+  }
 
   static bool _isValidJsonTemplate(String template) {
     try {

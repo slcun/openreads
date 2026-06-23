@@ -2,16 +2,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:openreads/model/isbn_data_source.dart';
 
 void main() {
+  // ignore: prefer_const_constructors
   final source = IsbnDataSource(
     id: 'open-library',
     name: 'Open Library',
     enabled: true,
     method: IsbnRequestMethod.post,
     urlTemplate: 'https://example.com/books/{isbn}',
-    headers: {'Accept': 'application/json'},
+    headers: const {'Accept': 'application/json'},
     postBodyMode: IsbnPostBodyMode.json,
     postBodyTemplate: '{"isbn":"{isbn}"}',
-    timeout: Duration(seconds: 12),
+    timeout: const Duration(seconds: 12),
     titleJsonPath: r'$.book.title',
     authorJsonPath: r'$.book.author',
     isbnJsonPath: r'$.book.isbn',
@@ -70,10 +71,30 @@ void main() {
       expect(invalidMapping.hasValidResponseMapping, isFalse);
     });
 
-    test('rejects a non-HTTPS request URL', () {
+    test('accepts HTTP URLs for trusted local hosts', () {
+      for (final url in [
+        'http://localhost:8080/books/{isbn}',
+        'http://nas.local/books/{isbn}',
+        'http://192.168.1.20/books/{isbn}',
+        'http://[fd00::20]/books/{isbn}',
+      ]) {
+        final source = IsbnDataSource(
+          id: 'local-http',
+          name: 'Local HTTP',
+          enabled: true,
+          method: IsbnRequestMethod.get,
+          urlTemplate: url,
+          titleJsonPath: r'$.title',
+        );
+
+        expect(source.validate(), isTrue, reason: url);
+      }
+    });
+
+    test('rejects HTTP URLs for public hosts', () {
       final source = IsbnDataSource(
-        id: 'insecure',
-        name: 'Insecure',
+        id: 'public-http',
+        name: 'Public HTTP',
         enabled: true,
         method: IsbnRequestMethod.get,
         urlTemplate: 'http://example.com/books/{isbn}',
@@ -98,19 +119,22 @@ void main() {
       expect(source.validate(), isFalse);
     });
 
-    test('rejects a JSON POST body that is invalid after ISBN substitution', () {
-      final source = IsbnDataSource(
-        id: 'invalid-json',
-        name: 'Invalid JSON',
-        enabled: true,
-        method: IsbnRequestMethod.post,
-        urlTemplate: 'https://example.com/books',
-        postBodyMode: IsbnPostBodyMode.json,
-        postBodyTemplate: 'isbn={isbn}',
-        titleJsonPath: r'$.title',
-      );
+    test(
+      'rejects a JSON POST body that is invalid after ISBN substitution',
+      () {
+        final source = IsbnDataSource(
+          id: 'invalid-json',
+          name: 'Invalid JSON',
+          enabled: true,
+          method: IsbnRequestMethod.post,
+          urlTemplate: 'https://example.com/books',
+          postBodyMode: IsbnPostBodyMode.json,
+          postBodyTemplate: 'isbn={isbn}',
+          titleJsonPath: r'$.title',
+        );
 
-      expect(source.hasValidRequestConfiguration, isFalse);
-    });
+        expect(source.hasValidRequestConfiguration, isFalse);
+      },
+    );
   });
 }

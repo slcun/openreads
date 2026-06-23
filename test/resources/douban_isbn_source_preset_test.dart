@@ -14,9 +14,17 @@ void main() {
       expect(source.sourceIdJsonPath, r'$.source_id');
     });
 
-    test('rejects a non-HTTPS base URL', () {
+    test('creates a source from a trusted local HTTP base URL', () {
+      final source =
+          DoubanIsbnSourcePreset.create('http://192.168.1.2:8080');
+
+      expect(source.urlTemplate,
+          'http://192.168.1.2:8080/v1/books/isbn/{isbn}');
+    });
+
+    test('rejects a public HTTP base URL', () {
       expect(
-        () => DoubanIsbnSourcePreset.create('http://192.168.1.2:8080'),
+        () => DoubanIsbnSourcePreset.create('http://books.example'),
         throwsFormatException,
       );
     });
