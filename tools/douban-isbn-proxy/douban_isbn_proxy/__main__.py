@@ -1,6 +1,7 @@
 from douban_isbn_proxy.app import DoubanLookup, create_app
 from douban_isbn_proxy.cache import SqliteCache
 from douban_isbn_proxy.config import Settings
+from douban_isbn_proxy.cover_cache import CoverCache
 import httpx
 import uvicorn
 
@@ -8,6 +9,10 @@ import uvicorn
 def main():
     settings = Settings()
     cache = SqliteCache(settings.cache_path, ttl_seconds=settings.cache_ttl_seconds)
+    cover_cache = CoverCache(
+        settings.cover_cache_path,
+        ttl_seconds=settings.cover_cache_ttl_seconds,
+    )
     client = httpx.AsyncClient(timeout=settings.request_timeout_seconds)
     lookup = DoubanLookup(
         cache=cache,
@@ -16,6 +21,7 @@ def main():
         request_timeout_seconds=settings.request_timeout_seconds,
         user_agent=settings.user_agent,
         cookie=settings.cookie,
+        cover_cache=cover_cache,
     )
     app = create_app(settings=settings, lookup=lookup)
     uvicorn.run(app, host=settings.bind_host, port=settings.bind_port)

@@ -26,3 +26,13 @@ class Settings:
         default_factory=lambda: os.getenv("COOKIE", "")
     )
     extra_headers: dict[str, str] = field(default_factory=dict)
+
+    public_base_url: str = field(
+        default_factory=lambda: os.getenv("PUBLIC_BASE_URL", "")
+    )
+    cover_cache_path: str = field(
+        default_factory=lambda: os.getenv("COVER_CACHE_PATH", "cover_cache")
+    )
+    cover_cache_ttl_seconds: int = field(
+        default_factory=lambda: int(os.getenv("COVER_CACHE_TTL_SECONDS", "86400"))
+    )

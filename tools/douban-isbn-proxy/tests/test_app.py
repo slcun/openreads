@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from douban_isbn_proxy.cache import SqliteCache
+from douban_isbn_proxy.cover_cache import CoverCache
 
 
 def load_fixture(name: str) -> str:
@@ -49,7 +50,7 @@ def cache(tmp_path):
     return SqliteCache(tmp_path / "test.db", ttl_seconds=300, clock=lambda: 100)
 
 
-def _make_client(upstream, cache, min_interval=0):
+def _make_client(upstream, cache, min_interval=0, cover_cache=None):
     from douban_isbn_proxy.app import DoubanLookup, create_app
     from douban_isbn_proxy.config import Settings
 
@@ -62,6 +63,7 @@ def _make_client(upstream, cache, min_interval=0):
         request_timeout_seconds=10,
         user_agent="",
         cookie="",
+        cover_cache=cover_cache,
     )
     app = create_app(settings=Settings(), lookup=lookup)
     return TestClient(app)
@@ -80,6 +82,16 @@ def paced_client(upstream, cache):
 
 
 class TestBookLookup:
+    def test_derives_cover_url_from_the_book_request(self, client, upstream):
+        upstream.queue_search_and_detail("9780306406157")
+
+        response = client.get("/v1/books/isbn/9780306406157")
+
+        assert response.status_code == 200
+        assert response.json()["cover_url"] == (
+            "http://testserver/v1/covers/9780306406157"
+        )
+
     def test_returns_metadata_then_uses_cache(self, client, upstream):
         upstream.queue_search_and_detail("9780306406157")
         first = client.get("/v1/books/isbn/9780306406157")
@@ -145,6 +157,7 @@ class TestBookLookup:
             request_timeout_seconds=10,
             user_agent="",
             cookie="",
+            cover_cache=None,
         )
         app = create_app(settings=Settings(), lookup=lookup)
         with TestClient(app) as c:
@@ -168,6 +181,7 @@ class TestBookLookup:
             request_timeout_seconds=10,
             user_agent="",
             cookie="",
+            cover_cache=None,
         )
         app = create_app(settings=Settings(), lookup=lookup)
 
@@ -198,6 +212,7 @@ class TestBookLookup:
             request_timeout_seconds=10,
             user_agent="",
             cookie="",
+            cover_cache=None,
         )
         app = create_app(settings=Settings(), lookup=lookup)
         with TestClient(app) as c:
@@ -223,6 +238,7 @@ class TestBookLookup:
             request_timeout_seconds=10,
             user_agent="TestBot/1.0",
             cookie="",
+            cover_cache=None,
         )
         app = create_app(settings=Settings(), lookup=lookup)
         with TestClient(app) as c:
@@ -249,6 +265,7 @@ class TestBookLookup:
             request_timeout_seconds=10,
             user_agent="Mozilla/5.0 Test Chrome/127",
             cookie="bid=abc123",
+            cover_cache=None,
         )
         app = create_app(settings=Settings(), lookup=lookup)
         with TestClient(app) as c:
@@ -271,3 +288,278 @@ class TestBookLookup:
         log_text = "\n".join(app_records)
         assert "<html" not in log_text
         assert "subject_search" not in log_text
+
+
+class TestCoverFetch:
+    def test_preserves_direct_cover_url_without_public_base_url(self):
+        from douban_isbn_proxy.app import BookResponse
+        from douban_isbn_proxy.models import BookMetadata
+
+        metadata = BookMetadata(
+            title="Test Book",
+            isbn="9780306406157",
+            source_id="1234567",
+            cover_url="https://img1.doubanio.com/view/subject/l/public/s1234567.jpg",
+        )
+
+        assert BookResponse.from_metadata(metadata).cover_url == metadata.cover_url
+
+    def _seed_cover_metadata(self, cache, isbn="9780306406157", cover_url="https://img1.doubanio.com/view/subject/l/public/s1234567.jpg"):
+        from douban_isbn_proxy.models import BookMetadata
+        meta = BookMetadata(
+            title="Test Book",
+            isbn=isbn,
+            source_id="1234567",
+            cover_url=cover_url,
+        )
+        cache.put_success(meta)
+
+    def test_fetches_doubanio_cover_with_referer(self, cache):
+        from douban_isbn_proxy.app import DoubanLookup, create_app
+        from douban_isbn_proxy.config import Settings
+
+        self._seed_cover_metadata(cache)
+
+        captured = {}
+
+        def capture_handler(request: httpx.Request) -> httpx.Response:
+            captured["referer"] = request.headers.get("referer", "")
+            captured["user_agent"] = request.headers.get("user-agent", "")
+            return httpx.Response(200, content=b"fake-image", headers={"content-type": "image/jpeg"})
+
+        transport = httpx.MockTransport(capture_handler)
+        async_client = httpx.AsyncClient(transport=transport)
+        lookup = DoubanLookup(
+            cache=cache,
+            client=async_client,
+            minimum_request_interval_seconds=0,
+            request_timeout_seconds=10,
+            user_agent="TestBot/1.0",
+            cookie="",
+            cover_cache=None,
+        )
+        app = create_app(settings=Settings(), lookup=lookup)
+
+        with TestClient(app) as c:
+            response = c.get("/v1/covers/9780306406157")
+
+        assert response.status_code == 200
+        assert response.content == b"fake-image"
+        assert response.headers["content-type"] == "image/jpeg"
+        assert captured["referer"] == "https://book.douban.com/"
+        assert captured["user_agent"] == "TestBot/1.0"
+
+    def test_rejects_non_doubanio_host(self, cache):
+        from douban_isbn_proxy.app import DoubanLookup, create_app
+        from douban_isbn_proxy.config import Settings
+
+        self._seed_cover_metadata(cache, cover_url="https://evil.example.com/image.jpg")
+
+        transport = httpx.MockTransport(lambda r: httpx.Response(200, content=b"image", headers={"content-type": "image/jpeg"}))
+        async_client = httpx.AsyncClient(transport=transport)
+        lookup = DoubanLookup(
+            cache=cache,
+            client=async_client,
+            minimum_request_interval_seconds=0,
+            request_timeout_seconds=10,
+            user_agent="",
+            cookie="",
+            cover_cache=None,
+        )
+        app = create_app(settings=Settings(), lookup=lookup)
+
+        with TestClient(app) as c:
+            response = c.get("/v1/covers/9780306406157")
+
+        assert response.status_code == 404
+
+    def test_rejects_non_image_response(self, cache):
+        from douban_isbn_proxy.app import DoubanLookup, create_app
+        from douban_isbn_proxy.config import Settings
+
+        self._seed_cover_metadata(cache)
+
+        transport = httpx.MockTransport(lambda r: httpx.Response(200, content=b"<html>not an image</html>", headers={"content-type": "text/html"}))
+        async_client = httpx.AsyncClient(transport=transport)
+        lookup = DoubanLookup(
+            cache=cache,
+            client=async_client,
+            minimum_request_interval_seconds=0,
+            request_timeout_seconds=10,
+            user_agent="",
+            cookie="",
+            cover_cache=None,
+        )
+        app = create_app(settings=Settings(), lookup=lookup)
+
+        with TestClient(app) as c:
+            response = c.get("/v1/covers/9780306406157")
+
+        assert response.status_code == 404
+
+    def test_rejects_redirect(self, cache):
+        from douban_isbn_proxy.app import DoubanLookup, create_app
+        from douban_isbn_proxy.config import Settings
+
+        self._seed_cover_metadata(cache)
+
+        transport = httpx.MockTransport(lambda r: httpx.Response(302, headers={"location": "https://evil.example.com/virus.exe"}))
+        async_client = httpx.AsyncClient(transport=transport)
+        lookup = DoubanLookup(
+            cache=cache,
+            client=async_client,
+            minimum_request_interval_seconds=0,
+            request_timeout_seconds=10,
+            user_agent="",
+            cookie="",
+            cover_cache=None,
+        )
+        app = create_app(settings=Settings(), lookup=lookup)
+
+        with TestClient(app) as c:
+            response = c.get("/v1/covers/9780306406157")
+
+        assert response.status_code == 404
+
+    def test_cache_hit_returns_cached_image(self, cache, tmp_path):
+        from douban_isbn_proxy.app import DoubanLookup, create_app
+        from douban_isbn_proxy.config import Settings
+
+        self._seed_cover_metadata(cache)
+        cover_cache = CoverCache(tmp_path / "cover_cache", ttl_seconds=300)
+        cover_cache.put("9780306406157", "image/jpeg", b"cached-image")
+
+        upstream_hit = []
+
+        def fail_if_called(request):
+            upstream_hit.append(True)
+            return httpx.Response(500)
+
+        transport = httpx.MockTransport(fail_if_called)
+        async_client = httpx.AsyncClient(transport=transport)
+        lookup = DoubanLookup(
+            cache=cache,
+            client=async_client,
+            minimum_request_interval_seconds=0,
+            request_timeout_seconds=10,
+            user_agent="",
+            cookie="",
+            cover_cache=cover_cache,
+        )
+        app = create_app(settings=Settings(), lookup=lookup)
+
+        with TestClient(app) as c:
+            response = c.get("/v1/covers/9780306406157")
+
+        assert response.status_code == 200
+        assert response.content == b"cached-image"
+        assert upstream_hit == []
+
+    def test_cache_miss_fetches_and_caches(self, cache, tmp_path):
+        from douban_isbn_proxy.app import DoubanLookup, create_app
+        from douban_isbn_proxy.config import Settings
+
+        self._seed_cover_metadata(cache)
+        cover_cache = CoverCache(tmp_path / "cover_cache", ttl_seconds=300)
+
+        fetch_count = []
+
+        def fetch_handler(request):
+            fetch_count.append(True)
+            return httpx.Response(200, content=b"fresh-image", headers={"content-type": "image/jpeg"})
+
+        transport = httpx.MockTransport(fetch_handler)
+        async_client = httpx.AsyncClient(transport=transport)
+        lookup = DoubanLookup(
+            cache=cache,
+            client=async_client,
+            minimum_request_interval_seconds=0,
+            request_timeout_seconds=10,
+            user_agent="",
+            cookie="",
+            cover_cache=cover_cache,
+        )
+        app = create_app(settings=Settings(), lookup=lookup)
+
+        with TestClient(app) as c:
+            response = c.get("/v1/covers/9780306406157")
+
+        assert response.status_code == 200
+        assert response.content == b"fresh-image"
+        assert len(fetch_count) == 1
+
+        # Second request should be served from cache
+        response2 = c.get("/v1/covers/9780306406157")
+        assert response2.status_code == 200
+        assert response2.content == b"fresh-image"
+        assert len(fetch_count) == 1
+
+    def test_invalid_isbn_returns_422(self, cache):
+        from douban_isbn_proxy.app import DoubanLookup, create_app
+        from douban_isbn_proxy.config import Settings
+
+        lookup = DoubanLookup(
+            cache=cache,
+            client=httpx.AsyncClient(),
+            minimum_request_interval_seconds=0,
+            request_timeout_seconds=10,
+            user_agent="",
+            cookie="",
+            cover_cache=None,
+        )
+        app = create_app(settings=Settings(), lookup=lookup)
+
+        with TestClient(app) as c:
+            response = c.get("/v1/covers/not-an-isbn")
+
+        assert response.status_code == 422
+
+    def test_no_cover_in_metadata_returns_404(self, cache):
+        from douban_isbn_proxy.app import DoubanLookup, create_app
+        from douban_isbn_proxy.config import Settings
+        from douban_isbn_proxy.models import BookMetadata
+
+        meta = BookMetadata(
+            title="No Cover",
+            isbn="9780306406157",
+            source_id="1234567",
+            cover_url=None,
+        )
+        cache.put_success(meta)
+
+        lookup = DoubanLookup(
+            cache=cache,
+            client=httpx.AsyncClient(),
+            minimum_request_interval_seconds=0,
+            request_timeout_seconds=10,
+            user_agent="",
+            cookie="",
+            cover_cache=None,
+        )
+        app = create_app(settings=Settings(), lookup=lookup)
+
+        with TestClient(app) as c:
+            response = c.get("/v1/covers/9780306406157")
+
+        assert response.status_code == 404
+
+    def test_upstream_cover_failure_returns_502(self, cache):
+        from douban_isbn_proxy.app import DoubanLookup, create_app
+        from douban_isbn_proxy.config import Settings
+
+        self._seed_cover_metadata(cache)
+
+        def fail_handler(request):
+            raise httpx.ConnectError("connection refused")
+
+        lookup = DoubanLookup(
+            cache=cache,
+            client=httpx.AsyncClient(transport=httpx.MockTransport(fail_handler)),
+            minimum_request_interval_seconds=0,
+            request_timeout_seconds=10,
+            cover_cache=None,
+        )
+        with TestClient(create_app(Settings(), lookup)) as client:
+            response = client.get("/v1/covers/9780306406157")
+
+        assert response.status_code == 502

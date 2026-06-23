@@ -32,12 +32,14 @@ Returns `204 No Content` when the service is ready. Use for health checks.
 
 Returns book metadata as JSON, or `404` if not found, `429` if rate-limited, `502` on upstream error.
 
+When `PUBLIC_BASE_URL` is configured, `cover_url` is returned as a proxy URL (`{PUBLIC_BASE_URL}/v1/covers/{isbn}`) instead of the direct Douban image URL, enabling cover image access without referrer restrictions.
+
 ```json
 {
   "title": "百年孤独",
   "authors": ["加西亚·马尔克斯"],
   "isbn": "9787544253994",
-  "cover_url": "https://img2.doubanio.com/...",
+  "cover_url": "https://your-proxy.example.com/v1/covers/9787544253994",
   "publisher": "南海出版公司",
   "publication_year": 2011,
   "page_count": 360,
@@ -48,16 +50,29 @@ Returns book metadata as JSON, or `404` if not found, `429` if rate-limited, `50
 }
 ```
 
+### `GET /v1/covers/{isbn}`
+
+Returns the cover image for the given ISBN. The image is fetched from Douban with the correct `Referer` header, validated for host (`*.doubanio.com`) and content type (`image/*`), and cached on disk.
+
+- `200` — image body with `Cache-Control: public, max-age=86400` and `ETag`
+- `404` — book not found, no cover, or upstream fetch failed
+- `422` — invalid ISBN
+
+On a cache hit, the image is served from disk without any upstream request. Cache files are stored under `COVER_CACHE_PATH` using the ISBN as filename and the appropriate extension (`.jpg`, `.png`, `.webp`, etc.).
+
 ## Environment Variables
 
 | Variable | Default | Description |
-|---|---|---|
+|---|---|---|---|
 | `BIND_HOST` | `0.0.0.0` | Bind address |
 | `BIND_PORT` | `8080` | Bind port |
 | `DOUBAN_PROXY_CACHE_PATH` | `cache.db` | SQLite cache file path |
 | `CACHE_TTL_SECONDS` | `86400` | Cache TTL (seconds, 24 h) |
 | `MINIMUM_REQUEST_INTERVAL_SECONDS` | `2.0` | Minimum interval between upstream requests |
 | `REQUEST_TIMEOUT_SECONDS` | `30.0` | HTTP request timeout |
+| `PUBLIC_BASE_URL` | *(empty)* | Public base URL for cover proxy (e.g. `https://your-proxy.example.com`). When set, `cover_url` in book responses points to the proxy's cover endpoint instead of the direct Douban image URL. **Required for cover proxy to work.** |
+| `COVER_CACHE_PATH` | `cover_cache` | Directory for cached cover images |
+| `COVER_CACHE_TTL_SECONDS` | `86400` | Cover image cache TTL (seconds, 24 h) |
 
 `DOUBAN_PROXY_CACHE_PATH` takes precedence over the legacy `CACHE_PATH` variable.
 

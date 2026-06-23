@@ -5,6 +5,7 @@ douban_isbn_proxy/__main__.py
 douban_isbn_proxy/app.py
 douban_isbn_proxy/cache.py
 douban_isbn_proxy/config.py
+douban_isbn_proxy/cover_cache.py
 douban_isbn_proxy/douban.py
 douban_isbn_proxy/isbn.py
 douban_isbn_proxy/models.py
@@ -16,5 +17,6 @@ douban_isbn_proxy.egg-info/top_level.txt
 tests/test_app.py
 tests/test_cache.py
 tests/test_container_contract.py
+tests/test_cover_cache.py
 tests/test_douban_parser.py
 tests/test_isbn.py
