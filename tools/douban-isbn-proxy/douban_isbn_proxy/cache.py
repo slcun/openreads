@@ -31,7 +31,7 @@ class SqliteCache:
     ):
         self._ttl = ttl_seconds
         self._clock = clock or time_module.time
-        self._conn = sqlite3.connect(str(db_path))
+        self._conn = sqlite3.connect(str(db_path), check_same_thread=False)
         self._conn.execute(
             """CREATE TABLE IF NOT EXISTS isbn_cache (
                 isbn TEXT PRIMARY KEY,
@@ -75,6 +75,9 @@ class SqliteCache:
             (isbn, "not_found", None, expires_at),
         )
         self._conn.commit()
+
+    def ping(self) -> None:
+        self._conn.execute("SELECT 1")
 
 
 def _to_json(metadata: BookMetadata) -> str:

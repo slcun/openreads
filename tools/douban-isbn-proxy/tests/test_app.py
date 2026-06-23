@@ -122,6 +122,26 @@ class TestBookLookup:
     def test_healthz_returns_204_when_ready(self, client):
         assert client.get("/healthz").status_code == 204
 
+    def test_healthz_returns_503_when_cache_unavailable(self, tmp_path):
+        from douban_isbn_proxy.app import DoubanLookup, ServiceUnavailable, create_app
+        from douban_isbn_proxy.config import Settings
+
+        cache = SqliteCache(tmp_path / "test.db", ttl_seconds=300, clock=lambda: 100)
+        transport = httpx.MockTransport(lambda r: httpx.Response(200))
+        async_client = httpx.AsyncClient(transport=transport)
+        lookup = DoubanLookup(
+            cache=cache,
+            client=async_client,
+            minimum_request_interval_seconds=0,
+            request_timeout_seconds=10,
+        )
+        # Close the underlying connection so ping fails
+        cache._conn.close()
+        app = create_app(settings=Settings(), lookup=lookup)
+        with TestClient(app) as c:
+            response = c.get("/healthz")
+            assert response.status_code == 503
+
     def test_log_contains_no_html_or_search_url(self, client, upstream, caplog):
         upstream.queue_search_and_detail("9780306406157")
         with caplog.at_level(logging.INFO):

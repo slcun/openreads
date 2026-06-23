@@ -47,6 +47,10 @@ class BookResponse(BaseModel):
         )
 
 
+class ServiceUnavailable(Exception):
+    pass
+
+
 class UpstreamError(Exception):
     pass
 
@@ -134,7 +138,10 @@ class DoubanLookup:
         return None
 
     def assert_ready(self) -> None:
-        pass
+        try:
+            self._cache.ping()
+        except Exception as e:
+            raise ServiceUnavailable() from e
 
 
 def create_app(settings: Settings, lookup: DoubanLookup) -> FastAPI:
@@ -161,7 +168,10 @@ def create_app(settings: Settings, lookup: DoubanLookup) -> FastAPI:
 
     @app.get("/healthz", status_code=204)
     async def healthz() -> Response:
-        lookup.assert_ready()
+        try:
+            lookup.assert_ready()
+        except ServiceUnavailable:
+            raise HTTPException(status_code=503, detail="service unavailable")
         return Response(status_code=204)
 
     return app
