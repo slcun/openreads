@@ -61,6 +61,7 @@ def _make_client(upstream, cache, min_interval=0):
         minimum_request_interval_seconds=min_interval,
         request_timeout_seconds=10,
         user_agent="",
+        cookie="",
     )
     app = create_app(settings=Settings(), lookup=lookup)
     return TestClient(app)
@@ -143,6 +144,7 @@ class TestBookLookup:
             minimum_request_interval_seconds=0,
             request_timeout_seconds=10,
             user_agent="",
+            cookie="",
         )
         app = create_app(settings=Settings(), lookup=lookup)
         with TestClient(app) as c:
@@ -165,6 +167,7 @@ class TestBookLookup:
             minimum_request_interval_seconds=0,
             request_timeout_seconds=10,
             user_agent="",
+            cookie="",
         )
         app = create_app(settings=Settings(), lookup=lookup)
 
@@ -194,6 +197,7 @@ class TestBookLookup:
             minimum_request_interval_seconds=0,
             request_timeout_seconds=10,
             user_agent="",
+            cookie="",
         )
         app = create_app(settings=Settings(), lookup=lookup)
         with TestClient(app) as c:
@@ -218,12 +222,46 @@ class TestBookLookup:
             minimum_request_interval_seconds=0,
             request_timeout_seconds=10,
             user_agent="TestBot/1.0",
+            cookie="",
         )
         app = create_app(settings=Settings(), lookup=lookup)
         with TestClient(app) as c:
             c.get("/v1/books/isbn/9780306406157")
 
         assert "TestBot/1.0" in captured.get("ua", "")
+
+    def test_sends_browser_like_headers(self, upstream, cache):
+        from douban_isbn_proxy.app import DoubanLookup, create_app
+        from douban_isbn_proxy.config import Settings
+
+        captured = {}
+
+        def capture_handler(request: httpx.Request) -> httpx.Response:
+            captured["headers"] = dict(request.headers)
+            return httpx.Response(200, text=load_fixture("search.html"))
+
+        transport = httpx.MockTransport(capture_handler)
+        async_client = httpx.AsyncClient(transport=transport)
+        lookup = DoubanLookup(
+            cache=cache,
+            client=async_client,
+            minimum_request_interval_seconds=0,
+            request_timeout_seconds=10,
+            user_agent="Mozilla/5.0 Test Chrome/127",
+            cookie="bid=abc123",
+        )
+        app = create_app(settings=Settings(), lookup=lookup)
+        with TestClient(app) as c:
+            c.get("/v1/books/isbn/9780306406157")
+
+        headers = captured.get("headers", {})
+        assert headers.get("user-agent") == "Mozilla/5.0 Test Chrome/127"
+        assert headers.get("cookie") == "bid=abc123"
+        assert headers.get("accept") is not None
+        assert headers.get("accept-language") is not None
+        assert "sec-ch-ua" in headers
+        assert headers.get("sec-fetch-dest") == "document"
+        assert headers.get("referer") is not None
 
     def test_log_contains_no_html_or_search_url(self, client, upstream, caplog):
         upstream.queue_search_and_detail("9780306406157")

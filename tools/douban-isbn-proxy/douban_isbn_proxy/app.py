@@ -62,6 +62,20 @@ class PacingError(Exception):
 
 
 class DoubanLookup:
+    _BASE_HEADERS: dict[str, str] = {
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Upgrade-Insecure-Requests": "1",
+        "sec-ch-ua": '"Not/A)Brand";v="99", "Google Chrome";v="127", "Chromium";v="127"',
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": '"Windows"',
+    }
+
     def __init__(
         self,
         cache: SqliteCache,
@@ -69,14 +83,17 @@ class DoubanLookup:
         minimum_request_interval_seconds: float,
         request_timeout_seconds: float,
         user_agent: str = "",
+        cookie: str = "",
     ):
         self._cache = cache
         self._client = client
         self._min_interval = minimum_request_interval_seconds
         self._timeout = request_timeout_seconds
         self._user_agent = user_agent
+        self._cookie = cookie
         self._lock = asyncio.Lock()
         self._last_request_time = 0.0
+        self._search_url = ""
 
     async def lookup(self, isbn: str) -> BookMetadata | None:
         entry = self._cache.get(isbn)
@@ -106,6 +123,7 @@ class DoubanLookup:
             "https://search.douban.com/book/subject_search?"
             f"search_text={isbn}&cat=1001"
         )
+        self._search_url = search_url
         search_html = await self._request_upstream(search_url)
 
         candidate_urls = parse_search_html(search_html)
@@ -130,11 +148,22 @@ class DoubanLookup:
         self._cache.put_not_found(isbn)
         return None
 
+    def _build_headers(self, url: str) -> dict[str, str]:
+        headers = dict(self._BASE_HEADERS)
+        headers["User-Agent"] = self._user_agent
+        if self._cookie:
+            headers["Cookie"] = self._cookie
+        if self._search_url and url != self._search_url:
+            headers["Referer"] = self._search_url
+        elif "search.douban.com" in url:
+            headers["Referer"] = "https://www.douban.com/"
+        return headers
+
     async def _request_upstream(self, url: str) -> str:
         elapsed = time.monotonic() - self._last_request_time
         if elapsed < self._min_interval:
             await asyncio.sleep(self._min_interval - elapsed)
-        headers = {"User-Agent": self._user_agent} if self._user_agent else {}
+        headers = self._build_headers(url)
         try:
             response = await self._client.get(url, headers=headers, timeout=self._timeout)
             response.raise_for_status()
@@ -142,7 +171,6 @@ class DoubanLookup:
         except httpx.HTTPError as e:
             raise UpstreamError("upstream request failed") from e
         finally:
-            # Advance clock even on errors to protect upstream from rapid retries
             self._last_request_time = time.monotonic()
 
     def assert_ready(self) -> None:

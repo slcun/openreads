@@ -22,3 +22,7 @@ class Settings:
             "(KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",
         )
     )
+    cookie: str = field(
+        default_factory=lambda: os.getenv("COOKIE", "")
+    )
+    extra_headers: dict[str, str] = field(default_factory=dict)
