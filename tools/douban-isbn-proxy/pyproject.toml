@@ -4,10 +4,13 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
   "fastapi>=0.115,<1",
-  "httpx>=0.28,<1",
+  "httpx[brotli]>=0.28,<1",
   "beautifulsoup4>=4.12,<5",
   "uvicorn[standard]>=0.34,<1",
 ]
+
+[tool.setuptools]
+packages = ["douban_isbn_proxy"]
 
 [dependency-groups]
 test = ["pytest>=8.3,<9"]
