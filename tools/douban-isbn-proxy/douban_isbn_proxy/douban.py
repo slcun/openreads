@@ -1,10 +1,13 @@
 import json
+import logging
 import re
 
 from bs4 import BeautifulSoup, Tag
 
 from douban_isbn_proxy.isbn import normalize_isbn, same_edition
 from douban_isbn_proxy.models import BookMetadata
+
+logger = logging.getLogger("douban_isbn_proxy.parser")
 
 
 def parse_search_html(html: str) -> list[str]:
@@ -24,6 +27,50 @@ def parse_search_html(html: str) -> list[str]:
             continue
         for url in _subject_urls_in_data(data):
             _append_subject_url(links, url)
+
+    logger.debug("parse_search_html: found %d subject links (html_len=%d)", len(links), len(html))
+    if not links and len(html) < 1000:
+        logger.warning(
+            "search page suspiciously short (%d bytes) — likely an anti-crawl page or blocked request",
+            len(html),
+        )
+
+    return links
+
+
+def parse_mobile_search_html(html: str) -> list[str]:
+    """Parse mobile Douban search results (m.douban.com/search)."""
+    soup = BeautifulSoup(html, "html.parser")
+    links: list[str] = []
+
+    # Standard approach: find all links containing /subject/
+    for a in soup.select('a[href*="/subject/"]'):
+        _append_subject_url(links, str(a.get("href", "")))
+
+    # Mobile-specific fallback: search result items with full book.douban.com subject links
+    for a in soup.select('a[href*="book.douban.com/subject/"]'):
+        _append_subject_url(links, str(a.get("href", "")))
+
+    # Mobile-specific fallback: mobile subject pages, convert to desktop URLs
+    for a in soup.select('a[href*="m.douban.com/subject/"]'):
+        href = str(a.get("href", ""))
+        m = re.search(r"/subject/(\d+)", href)
+        if m:
+            desktop_url = f"https://book.douban.com/subject/{m.group(1)}/"
+            if desktop_url not in links:
+                links.append(desktop_url)
+
+    logger.debug(
+        "parse_mobile_search_html: found %d subject links (html_len=%d)",
+        len(links),
+        len(html),
+    )
+    if not links and len(html) < 1000:
+        logger.warning(
+            "mobile search page suspiciously short (%d bytes) — "
+            "likely an anti-crawl page or blocked request",
+            len(html),
+        )
 
     return links
 
@@ -52,6 +99,7 @@ def parse_detail_html(html: str, isbn: str) -> BookMetadata | None:
 
     wrapper = soup.find(id="wrapper")
     if not isinstance(wrapper, Tag):
+        logger.debug("parse_detail_html: no #wrapper found (isbn=%s), page may be blocked or invalid", isbn)
         return None
 
     title_el = wrapper.find("h1")
@@ -61,6 +109,16 @@ def parse_detail_html(html: str, isbn: str) -> BookMetadata | None:
     fields = _parse_info_block(info_el if isinstance(info_el, Tag) else None)
 
     parsed_isbn = fields.get("isbn", "")
+    if not title:
+        logger.debug("parse_detail_html: empty title (isbn=%s)", isbn)
+    if not parsed_isbn:
+        logger.debug("parse_detail_html: no ISBN field on page (isbn=%s)", isbn)
+    if title and parsed_isbn and not same_edition(parsed_isbn, isbn):
+        logger.warning(
+            "parse_detail_html: ISBN mismatch — page has isbn='%s' but we queried '%s'",
+            parsed_isbn,
+            isbn,
+        )
     if not title or not parsed_isbn or not same_edition(parsed_isbn, isbn):
         return None
 

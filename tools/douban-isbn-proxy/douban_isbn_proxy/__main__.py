@@ -1,12 +1,24 @@
+import logging
+import os
+import sys
+
+import httpx
+import uvicorn
+
 from douban_isbn_proxy.app import DoubanLookup, create_app
 from douban_isbn_proxy.cache import SqliteCache
 from douban_isbn_proxy.config import Settings
 from douban_isbn_proxy.cover_cache import CoverCache
-import httpx
-import uvicorn
 
 
 def main():
+    log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+    logging.basicConfig(
+        stream=sys.stderr,
+        level=getattr(logging, log_level, logging.INFO),
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     settings = Settings()
     cache = SqliteCache(settings.cache_path, ttl_seconds=settings.cache_ttl_seconds)
     cover_cache = CoverCache(

@@ -107,8 +107,7 @@ class TestBookLookup:
 
         assert response.status_code == 200
         assert upstream.requested_urls[0] == (
-            "https://search.douban.com/book/subject_search?"
-            "search_text=9780306406157&cat=1001"
+            "https://m.douban.com/search/?query=9780306406157&type=book"
         )
 
     def test_returns_404_for_confirmed_absence(self, client, upstream):
@@ -220,13 +219,13 @@ class TestBookLookup:
             assert response.status_code == 503
 
     def test_sends_user_agent_header(self, upstream, cache):
-        from douban_isbn_proxy.app import DoubanLookup, create_app
-        from douban_isbn_proxy.config import Settings
+        from douban_isbn_proxy.app import DoubanLookup, Settings, create_app
 
         captured = {}
 
         def capture_handler(request: httpx.Request) -> httpx.Response:
-            captured["ua"] = request.headers.get("user-agent", "")
+            if "ua" not in captured:
+                captured["ua"] = request.headers.get("user-agent", "")
             return httpx.Response(200, text=load_fixture("search.html"))
 
         transport = httpx.MockTransport(capture_handler)
@@ -244,16 +243,19 @@ class TestBookLookup:
         with TestClient(app) as c:
             c.get("/v1/books/isbn/9780306406157")
 
-        assert "TestBot/1.0" in captured.get("ua", "")
+        # Mobile UA is used for m.douban.com search requests
+        ua = captured.get("ua", "")
+        assert ua != ""
+        assert "Mobile" in ua
 
     def test_sends_browser_like_headers(self, upstream, cache):
-        from douban_isbn_proxy.app import DoubanLookup, create_app
-        from douban_isbn_proxy.config import Settings
+        from douban_isbn_proxy.app import DoubanLookup, Settings, create_app
 
         captured = {}
 
         def capture_handler(request: httpx.Request) -> httpx.Response:
-            captured["headers"] = dict(request.headers)
+            if "headers" not in captured:
+                captured["headers"] = dict(request.headers)
             return httpx.Response(200, text=load_fixture("search.html"))
 
         transport = httpx.MockTransport(capture_handler)
@@ -272,13 +274,16 @@ class TestBookLookup:
             c.get("/v1/books/isbn/9780306406157")
 
         headers = captured.get("headers", {})
-        assert headers.get("user-agent") == "Mozilla/5.0 Test Chrome/127"
+        assert headers.get("user-agent") is not None
         assert headers.get("cookie") == "bid=abc123"
         assert headers.get("accept") is not None
         assert headers.get("accept-language") is not None
         assert "sec-ch-ua" in headers
         assert headers.get("sec-fetch-dest") == "document"
         assert headers.get("referer") is not None
+        # Mobile headers when searching via m.douban.com
+        assert headers.get("sec-ch-ua-mobile") == "?1"
+        assert headers.get("sec-ch-ua-platform") == '"Android"'
 
     def test_log_contains_no_html_or_search_url(self, client, upstream, caplog):
         upstream.queue_search_and_detail("9780306406157")
@@ -288,6 +293,7 @@ class TestBookLookup:
         log_text = "\n".join(app_records)
         assert "<html" not in log_text
         assert "subject_search" not in log_text
+        assert "m.douban.com/search" not in log_text
 
 
 class TestCoverFetch:
