@@ -320,5 +320,9 @@
     "isbn_data_source_post": "POST",
     "isbn_data_source_body_none": "None",
     "isbn_data_source_body_json": "JSON",
-    "isbn_data_source_body_form": "Form URL encoded"
+    "isbn_data_source_body_form": "Form URL encoded",
+    "douban_source_add": "Add Douban proxy",
+    "douban_source_base_url": "Proxy base URL",
+    "douban_source_base_url_hint": "https://your-server.example.com/",
+    "douban_source_invalid_url": "Enter a valid HTTPS URL"
 }

@@ -320,4 +320,8 @@ abstract class LocaleKeys {
   static const isbn_data_source_body_none = 'isbn_data_source_body_none';
   static const isbn_data_source_body_json = 'isbn_data_source_body_json';
   static const isbn_data_source_body_form = 'isbn_data_source_body_form';
+  static const douban_source_add = 'douban_source_add';
+  static const douban_source_base_url = 'douban_source_base_url';
+  static const douban_source_base_url_hint = 'douban_source_base_url_hint';
+  static const douban_source_invalid_url = 'douban_source_invalid_url';
 }

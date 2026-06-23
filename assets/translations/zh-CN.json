@@ -320,5 +320,9 @@
     "show_book_format": "显示图书格式",
     "show_number_of_books": "在列表顶部显示图书数量",
     "show_sort_attributes": "显示排序属性",
-    "show_title_over_cover": "在封面上显示标题"
+    "show_title_over_cover": "在封面上显示标题",
+    "douban_source_add": "添加豆瓣代理",
+    "douban_source_base_url": "代理基础 URL",
+    "douban_source_base_url_hint": "https://your-server.example.com/",
+    "douban_source_invalid_url": "请输入有效的 HTTPS URL"
 }

@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:openreads/generated/locale_keys.g.dart';
 import 'package:openreads/logic/cubit/isbn_data_sources_cubit.dart';
 import 'package:openreads/model/isbn_data_source.dart';
+import 'package:openreads/resources/douban_isbn_source_preset.dart';
 import 'package:openreads/resources/isbn_source_credentials_store.dart';
 import 'package:openreads/ui/settings_screen/isbn_data_source_editor_screen.dart';
 
@@ -13,10 +14,24 @@ class IsbnDataSourcesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: Text(LocaleKeys.isbn_data_sources.tr())),
-        floatingActionButton: FloatingActionButton(
-          key: const Key('isbn-source-add'),
-          onPressed: () => _openEditor(context),
-          child: const Icon(Icons.add),
+        floatingActionButton: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            FloatingActionButton(
+              key: const Key('douban-source-add'),
+              heroTag: 'douban',
+              onPressed: () => _openDoubanDialog(context),
+              child: const Icon(Icons.library_books),
+            ),
+            const SizedBox(height: 8),
+            FloatingActionButton(
+              key: const Key('isbn-source-add'),
+              heroTag: 'manual',
+              onPressed: () => _openEditor(context),
+              child: const Icon(Icons.add),
+            ),
+          ],
         ),
         body: BlocBuilder<IsbnDataSourcesCubit, List<IsbnDataSource>>(
           builder: (context, sources) {
@@ -68,6 +83,61 @@ class IsbnDataSourcesScreen extends StatelessWidget {
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => IsbnDataSourceEditorScreen(source: source),
     ));
+  }
+
+  Future<void> _openDoubanDialog(BuildContext context) async {
+    final controller = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(LocaleKeys.douban_source_add.tr()),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            key: const Key('douban-source-base-url'),
+            controller: controller,
+            decoration: InputDecoration(
+              labelText: LocaleKeys.douban_source_base_url.tr(),
+              hintText: LocaleKeys.douban_source_base_url_hint.tr(),
+              border: const OutlineInputBorder(),
+            ),
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return LocaleKeys.douban_source_invalid_url.tr();
+              }
+              try {
+                DoubanIsbnSourcePreset.create(value);
+              } on FormatException {
+                return LocaleKeys.douban_source_invalid_url.tr();
+              }
+              return null;
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(LocaleKeys.cancel.tr()),
+          ),
+          FilledButton(
+            key: const Key('douban-dialog-confirm'),
+            onPressed: () {
+              if (formKey.currentState?.validate() ?? false) {
+                Navigator.of(context).pop(true);
+              }
+            },
+            child: Text(LocaleKeys.douban_source_add.tr()),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      final source = DoubanIsbnSourcePreset.create(controller.text);
+      context.read<IsbnDataSourcesCubit>().upsertFirst(source);
+    }
   }
 
   Future<void> _delete(BuildContext context, String sourceId) async {

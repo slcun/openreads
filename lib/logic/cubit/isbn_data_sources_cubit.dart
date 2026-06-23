@@ -39,6 +39,11 @@ class IsbnDataSourcesCubit extends HydratedCubit<List<IsbnDataSource>> {
     emit(reordered);
   }
 
+  void upsertFirst(IsbnDataSource source) {
+    final remaining = state.where((s) => s.id != source.id).toList();
+    emit([source, ...remaining]);
+  }
+
   void reorderItem(int oldIndex, int newIndex) {
     if (oldIndex < 0 || oldIndex >= state.length || newIndex < 0 ||
         newIndex >= state.length) {
