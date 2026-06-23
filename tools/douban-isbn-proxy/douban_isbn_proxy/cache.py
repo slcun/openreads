@@ -1,9 +1,9 @@
 import json
 import sqlite3
+import time as time_module
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any
 
 from douban_isbn_proxy.models import BookMetadata
 
@@ -30,7 +30,7 @@ class SqliteCache:
         clock: Callable[[], float] | None = None,
     ):
         self._ttl = ttl_seconds
-        self._clock = clock or (lambda: __import__("time").time())
+        self._clock = clock or time_module.time
         self._conn = sqlite3.connect(str(db_path))
         self._conn.execute(
             """CREATE TABLE IF NOT EXISTS isbn_cache (
@@ -78,25 +78,5 @@ class SqliteCache:
 
 
 def _to_json(metadata: BookMetadata) -> str:
-    d: dict[str, Any] = {
-        "title": metadata.title,
-        "isbn": metadata.isbn,
-        "source_id": metadata.source_id,
-    }
-    if metadata.authors:
-        d["authors"] = metadata.authors
-    if metadata.cover_url is not None:
-        d["cover_url"] = metadata.cover_url
-    if metadata.publisher is not None:
-        d["publisher"] = metadata.publisher
-    if metadata.publication_year is not None:
-        d["publication_year"] = metadata.publication_year
-    if metadata.page_count is not None:
-        d["page_count"] = metadata.page_count
-    if metadata.description is not None:
-        d["description"] = metadata.description
-    if metadata.rating is not None:
-        d["rating"] = metadata.rating
-    if metadata.rating_count is not None:
-        d["rating_count"] = metadata.rating_count
-    return json.dumps(d)
+    d = asdict(metadata)
+    return json.dumps({k: v for k, v in d.items() if v is not None})

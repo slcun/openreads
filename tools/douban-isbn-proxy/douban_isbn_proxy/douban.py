@@ -52,7 +52,8 @@ def parse_detail_html(html: str, isbn: str) -> BookMetadata | None:
     rating, rating_count = _parse_rating(wrapper)
 
     normalized = normalize_isbn(parsed_isbn)
-    assert normalized is not None
+    if normalized is None:
+        return None
 
     return BookMetadata(
         title=title,
@@ -83,16 +84,18 @@ def _parse_info_block(text: str) -> dict[str, str]:
     fields: dict[str, str] = {}
     for line in text.split("\n"):
         line = line.strip()
-        if ":" in line:
-            key, _, value = line.partition(":")
-            key = key.strip()
-            mapped = _LABEL_MAP.get(key, key.lower())
-            fields[mapped] = value.strip()
+        for sep in (":", "："):
+            if sep in line:
+                key, _, value = line.partition(sep)
+                key = key.strip()
+                mapped = _LABEL_MAP.get(key, key.lower())
+                fields[mapped] = value.strip()
+                break
     return fields
 
 
 def _parse_authors(raw: str) -> list[str]:
-    return [a.strip() for a in re.split(r"[/／、,，]", raw) if a.strip()]
+    return [a.strip() for a in re.split(r"[/／、,，·]", raw) if a.strip()]
 
 
 def _extract_source_id(wrapper: Tag) -> str:
@@ -125,7 +128,7 @@ def _parse_description(wrapper: Tag) -> str | None:
 
 
 def _parse_rating(wrapper: Tag) -> tuple[float | None, int | None]:
-    rating_el = wrapper.find("strong", class_="ll")
+    rating_el = wrapper.select_one(".rating_self strong.ll")
     rating = float(rating_el.get_text(strip=True)) if isinstance(rating_el, Tag) else None
 
     rating_people = wrapper.find("span", class_="rating_people")
