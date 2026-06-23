@@ -106,8 +106,9 @@ class DoubanLookup:
             search_resp.raise_for_status()
             search_html = search_resp.text
         except httpx.HTTPError as e:
-            raise UpstreamError() from e
+            raise UpstreamError("upstream request failed") from e
         finally:
+            # Advance clock even on errors to protect upstream from rapid retries
             self._last_request_time = time.monotonic()
 
         candidate_urls = parse_search_html(search_html)
@@ -123,8 +124,9 @@ class DoubanLookup:
                 detail_resp.raise_for_status()
                 detail_html = detail_resp.text
             except httpx.HTTPError as e:
-                raise UpstreamError() from e
+                raise UpstreamError("upstream request failed") from e
             finally:
+                # Advance clock even on errors to protect upstream from rapid retries
                 self._last_request_time = time.monotonic()
 
             metadata = parse_detail_html(detail_html, isbn)
@@ -145,6 +147,7 @@ class DoubanLookup:
 
 
 def create_app(settings: Settings, lookup: DoubanLookup) -> FastAPI:
+    _ = settings  # reserved for future middleware/cors configuration
     app = FastAPI(title="Douban ISBN Proxy")
 
     @app.get("/v1/books/isbn/{isbn}", response_model=BookResponse)
