@@ -123,4 +123,10 @@ lint/tmp/
 __pycache__/
 *.pyc
 
+# Douban ISBN proxy runtime cache
+tools/douban-isbn-proxy/cache.db
+
+# CodeGraph index
+.codegraph/
+
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode
