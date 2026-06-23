@@ -6,6 +6,7 @@ import time
 from typing import NoReturn
 
 import httpx
+from bs4 import BeautifulSoup
 from fastapi import FastAPI, HTTPException, Request, Response
 from pydantic import BaseModel
 
@@ -17,6 +18,19 @@ from douban_isbn_proxy.isbn import normalize_isbn
 from douban_isbn_proxy.models import BookMetadata
 
 logger = logging.getLogger("douban_isbn_proxy")
+
+
+def _log_search_page_diagnostic(isbn: str, html: str) -> None:
+    """Log a bounded plain-text summary when a search page has no candidates."""
+    soup = BeautifulSoup(html, "html.parser")
+    title = soup.title.get_text(" ", strip=True) if soup.title else "<none>"
+    text = soup.get_text(" ", strip=True)[:500]
+    logger.debug(
+        "search page diagnostic for isbn=%s: title=%r text=%r",
+        isbn,
+        title,
+        text,
+    )
 
 
 class BookResponse(BaseModel):
@@ -150,10 +164,10 @@ class DoubanLookup:
             logger.warning(
                 "no candidates found for isbn=%s. "
                 "Possible causes: anti-crawl page, network issue, or ISBN not found. "
-                "Suggest enabling DEBUG log level to inspect raw response.",
+                "The result is not cached; enable DEBUG for a page diagnostic.",
                 isbn,
             )
-            self._cache.put_not_found(isbn)
+            _log_search_page_diagnostic(isbn, search_html)
             return None
 
         logger.info("found %d candidate(s) for isbn=%s", len(candidate_urls), isbn)

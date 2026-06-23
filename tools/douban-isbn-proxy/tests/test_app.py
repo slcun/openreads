@@ -27,9 +27,12 @@ class FakeUpstream:
         self._queue.append(httpx.Response(200, text=load_fixture("search.html")))
         self._queue.append(httpx.Response(200, text=load_fixture("detail_matching.html")))
 
-    def queue_search_without_candidates(self) -> None:
+    def queue_search_without_candidates(
+        self,
+        html: str = "<html><body><div>No results</div></body></html>",
+    ) -> None:
         self._queue.append(
-            httpx.Response(200, text="<html><body><div>No results</div></body></html>")
+            httpx.Response(200, text=html)
         )
 
     def _handler(self, request: httpx.Request) -> httpx.Response:
@@ -113,6 +116,33 @@ class TestBookLookup:
     def test_returns_404_for_confirmed_absence(self, client, upstream):
         upstream.queue_search_without_candidates()
         assert client.get("/v1/books/isbn/9780306406157").status_code == 404
+
+    def test_search_page_without_candidates_is_not_cached_and_logs_diagnostic(
+        self, client, upstream, cache, caplog
+    ):
+        isbn = "9780306406157"
+        blocked_page = (
+            "<html><head><title>豆瓣 - 请求过于频繁</title></head>"
+            "<body><p>请稍后再试</p></body></html>"
+        )
+        upstream.queue_search_without_candidates(blocked_page)
+        upstream.queue_search_without_candidates(blocked_page)
+
+        with caplog.at_level(logging.DEBUG):
+            first = client.get(f"/v1/books/isbn/{isbn}")
+            second = client.get(f"/v1/books/isbn/{isbn}")
+
+        assert first.status_code == second.status_code == 404
+        assert upstream.request_count == 2
+        assert cache.get(isbn) is None
+        diagnostic = next(
+            record.message
+            for record in caplog.records
+            if "search page diagnostic" in record.message
+        )
+        assert "title='豆瓣 - 请求过于频繁'" in diagnostic
+        assert "请稍后再试" in diagnostic
+        assert "<html" not in diagnostic
 
     def test_returns_429_and_retry_after_when_paced(self, paced_client, upstream):
         upstream.queue_search_and_detail("9780306406157")
