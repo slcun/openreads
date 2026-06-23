@@ -119,4 +119,8 @@ lint/tmp/
 # Agent worktrees
 .worktrees/
 
+# Python
+__pycache__/
+*.pyc
+
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode
