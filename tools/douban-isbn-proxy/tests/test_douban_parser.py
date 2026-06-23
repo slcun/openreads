@@ -15,6 +15,18 @@ def test_search_parser_extracts_subject_links():
     assert links == ["https://book.douban.com/subject/1234567/"]
 
 
+def test_search_parser_extracts_subject_links_from_embedded_data():
+    html = '''<script>
+window.__DATA__ = {"items": [
+  {"url": "https://book.douban.com/subject/7654321/"}
+]};
+</script>'''
+
+    links = parse_search_html(html)
+
+    assert links == ["https://book.douban.com/subject/7654321/"]
+
+
 def test_detail_parser_returns_only_a_matching_isbn():
     result = parse_detail_html(load_fixture("detail_matching.html"), "9780306406157")
     assert result is not None
@@ -50,3 +62,33 @@ def test_detail_parser_handles_missing_fields():
     assert result.description is None
     assert result.rating is None
     assert result.rating_count is None
+
+
+def test_detail_parser_reads_values_after_douban_label_nodes():
+    html = '''<html><body><div id="wrapper">
+<h1>Label nodes</h1>
+<div id="info">
+  <span class="pl">作者:</span> <a>Ada Author</a><br/>
+  <span class="pl">出版社:</span> Test Press<br/>
+  <span class="pl">ISBN:</span> 9780306406157
+</div>
+</div></body></html>'''
+
+    result = parse_detail_html(html, "9780306406157")
+
+    assert result is not None
+    assert result.authors == ["Ada Author"]
+    assert result.publisher == "Test Press"
+
+
+def test_detail_parser_ignores_non_numeric_rating():
+    html = '''<html><body><div id="wrapper">
+<h1>Unrated</h1>
+<div id="info">ISBN: 9780306406157</div>
+<div class="rating_self"><strong class="ll">暂无评分</strong></div>
+</div></body></html>'''
+
+    result = parse_detail_html(html, "9780306406157")
+
+    assert result is not None
+    assert result.rating is None

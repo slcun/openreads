@@ -1,3 +1,4 @@
+import json
 import re
 
 from bs4 import BeautifulSoup, Tag
@@ -10,12 +11,40 @@ def parse_search_html(html: str) -> list[str]:
     soup = BeautifulSoup(html, "html.parser")
     links: list[str] = []
     for a in soup.select('a[href*="/subject/"]'):
-        href = a.get("href", "")
-        if re.search(r"/subject/\d+/", href):
-            full = href if href.startswith("http") else "https://book.douban.com" + href
-            if full not in links:
-                links.append(full)
+        _append_subject_url(links, str(a.get("href", "")))
+
+    for script in soup.find_all("script"):
+        text = script.string or script.get_text()
+        marker = "window.__DATA__ ="
+        if marker not in text:
+            continue
+        try:
+            data, _ = json.JSONDecoder().raw_decode(text.split(marker, 1)[1].lstrip())
+        except json.JSONDecodeError:
+            continue
+        for url in _subject_urls_in_data(data):
+            _append_subject_url(links, url)
+
     return links
+
+
+def _append_subject_url(links: list[str], url: str) -> None:
+    if not re.search(r"/subject/\d+/", url):
+        return
+    full = url if url.startswith("http") else "https://book.douban.com" + url
+    if full not in links:
+        links.append(full)
+
+
+def _subject_urls_in_data(value: object) -> list[str]:
+    if isinstance(value, dict):
+        urls = [item for item in value.values() if isinstance(item, str)]
+        for item in value.values():
+            urls.extend(_subject_urls_in_data(item))
+        return urls
+    if isinstance(value, list):
+        return [url for item in value for url in _subject_urls_in_data(item)]
+    return []
 
 
 def parse_detail_html(html: str, isbn: str) -> BookMetadata | None:
@@ -29,12 +58,10 @@ def parse_detail_html(html: str, isbn: str) -> BookMetadata | None:
     title = title_el.get_text(strip=True) if isinstance(title_el, Tag) else ""
 
     info_el = wrapper.find(id="info")
-    info_text = info_el.get_text("\n", strip=True) if isinstance(info_el, Tag) else ""
-
-    fields = _parse_info_block(info_text)
+    fields = _parse_info_block(info_el if isinstance(info_el, Tag) else None)
 
     parsed_isbn = fields.get("isbn", "")
-    if not parsed_isbn or not same_edition(parsed_isbn, isbn):
+    if not title or not parsed_isbn or not same_edition(parsed_isbn, isbn):
         return None
 
     source_id = _extract_source_id(wrapper)
@@ -80,9 +107,34 @@ _LABEL_MAP: dict[str, str] = {
 }
 
 
-def _parse_info_block(text: str) -> dict[str, str]:
+def _parse_info_block(info: Tag | None) -> dict[str, str]:
+    if info is None:
+        return {}
+
     fields: dict[str, str] = {}
-    for line in text.split("\n"):
+    labels = info.select("span.pl")
+    for label in labels:
+        key = label.get_text(strip=True).rstrip(":：").strip()
+        mapped = _LABEL_MAP.get(key, key.lower())
+        values: list[str] = []
+        for sibling in label.next_siblings:
+            if isinstance(sibling, Tag) and (
+                sibling.name == "br" or "pl" in (sibling.get("class") or [])
+            ):
+                break
+            text = (
+                sibling.get_text(" ", strip=True)
+                if isinstance(sibling, Tag)
+                else str(sibling).strip()
+            )
+            if text:
+                values.append(text)
+        fields[mapped] = " ".join(values)
+
+    if fields:
+        return fields
+
+    for line in info.get_text("\n", strip=True).split("\n"):
         line = line.strip()
         for sep in (":", "："):
             if sep in line:
@@ -129,7 +181,12 @@ def _parse_description(wrapper: Tag) -> str | None:
 
 def _parse_rating(wrapper: Tag) -> tuple[float | None, int | None]:
     rating_el = wrapper.select_one(".rating_self strong.ll")
-    rating = float(rating_el.get_text(strip=True)) if isinstance(rating_el, Tag) else None
+    rating: float | None = None
+    if isinstance(rating_el, Tag):
+        try:
+            rating = float(rating_el.get_text(strip=True))
+        except ValueError:
+            pass
 
     rating_people = wrapper.find("span", class_="rating_people")
     rating_count: int | None = None
