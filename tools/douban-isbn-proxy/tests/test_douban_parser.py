@@ -93,6 +93,27 @@ def test_detail_parser_reads_values_after_douban_label_nodes():
     assert result.publisher == "Test Press"
 
 
+def test_detail_parser_normalizes_inverted_author_names_and_publication_year():
+    html = '''<html><body><div id="wrapper">
+<h1>Error-correction Coding for Digital Communications</h1>
+<div id="info">
+  <span class="pl">作者</span>: <a>Clark, George C.</a>; <a>Cain, J. Bibb</a>; <a>Clark Jr, George C.</a><br/>
+  <span class="pl">出版年:</span> 1981-6<br/>
+  <span class="pl">ISBN:</span> 9780306406157
+</div>
+</div></body></html>'''
+
+    result = parse_detail_html(html, "9780306406157")
+
+    assert result is not None
+    assert result.authors == [
+        "Clark, George C.",
+        "Cain, J. Bibb",
+        "Clark Jr, George C.",
+    ]
+    assert result.publication_year == 1981
+
+
 def test_detail_parser_ignores_non_numeric_rating():
     html = '''<html><body><div id="wrapper">
 <h1>Unrated</h1>

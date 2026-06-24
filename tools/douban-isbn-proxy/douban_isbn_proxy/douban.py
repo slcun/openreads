@@ -130,7 +130,7 @@ def parse_detail_html(html: str, isbn: str) -> BookMetadata | None:
     cover_url = _parse_cover_url(wrapper)
 
     publisher = fields.get("publisher")
-    pub_year = _parse_int(fields.get("publication_year"))
+    pub_year = _parse_year(fields.get("publication_year"))
     page_count = _parse_int(fields.get("page_count"))
 
     description = _parse_description(wrapper)
@@ -206,7 +206,8 @@ def _parse_info_block(info: Tag | None) -> dict[str, str]:
 
 
 def _parse_authors(raw: str) -> list[str]:
-    return [a.strip() for a in re.split(r"[/／、,，·]", raw) if a.strip()]
+    normalized = raw.lstrip(":：").strip()
+    return [a.strip() for a in re.split(r"[/／、;；]", normalized) if a.strip()]
 
 
 def _extract_source_id(wrapper: Tag) -> str:
@@ -262,3 +263,10 @@ def _parse_int(value: str | None) -> int | None:
         return None
     digits = re.sub(r"[^\d]", "", value)
     return int(digits) if digits else None
+
+
+def _parse_year(value: str | None) -> int | None:
+    if value is None:
+        return None
+    match = re.search(r"(?<!\d)(1\d{3}|20\d{2})(?!\d)", value)
+    return int(match.group(1)) if match else None
