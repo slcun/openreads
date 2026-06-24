@@ -1,12 +1,13 @@
 import 'package:openreads/model/isbn_data_source.dart';
 
 class DoubanIsbnSourcePreset {
-  static const id = 'douban-isbn-proxy';
+  static const _idPrefix = 'douban-isbn-proxy';
+  static int _lastGeneratedIdTimestamp = 0;
 
   static IsbnDataSource create(String baseUrl) {
     final baseUri = _allowedBaseUri(baseUrl);
     return IsbnDataSource(
-      id: id,
+      id: _nextId(),
       name: 'Douban ISBN Proxy',
       enabled: true,
       method: IsbnRequestMethod.get,
@@ -23,6 +24,15 @@ class DoubanIsbnSourcePreset {
     );
   }
 
+  static String _nextId() {
+    final now = DateTime.now().microsecondsSinceEpoch;
+    final timestamp = now > _lastGeneratedIdTimestamp
+        ? now
+        : _lastGeneratedIdTimestamp + 1;
+    _lastGeneratedIdTimestamp = timestamp;
+    return '$_idPrefix-$timestamp';
+  }
+
   static Uri _allowedBaseUri(String baseUrl) {
     final trimmed = baseUrl.trim();
     if (trimmed.isEmpty) {
@@ -35,7 +45,8 @@ class DoubanIsbnSourcePreset {
     }
 
     final uri = Uri.tryParse(normalized);
-    if (uri == null || !IsbnDataSource.isAllowedRequestUri(uri) ||
+    if (uri == null ||
+        !IsbnDataSource.isAllowedRequestUri(uri) ||
         uri.host.isEmpty) {
       throw const FormatException(
         'Base URL must be a valid HTTPS URL or trusted local HTTP URL with a host',
