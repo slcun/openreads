@@ -131,3 +131,5 @@ tools/douban-isbn-proxy/cache.db
 
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode
 tools/douban-isbn-proxy/cover_cache/*
+
+.codex/
